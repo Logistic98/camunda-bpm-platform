@@ -30,14 +30,15 @@ import static org.hamcrest.core.IsNull.notNullValue;
 import static org.hamcrest.core.IsNull.nullValue;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import org.camunda.bpm.engine.AuthorizationService;
 import org.camunda.bpm.engine.DecisionService;
 import org.camunda.bpm.engine.ExternalTaskService;
@@ -227,6 +228,7 @@ public class HistoryCleanupRemovalTimeTest {
 
 
   protected final BpmnModelInstance CALLED_PROCESS_INCIDENT = Bpmn.createExecutableProcess(PROCESS_KEY)
+    .camundaHistoryTimeToLive(null)
     .startEvent()
       .scriptTask()
         .camundaAsyncBefore()
@@ -236,6 +238,7 @@ public class HistoryCleanupRemovalTimeTest {
     .endEvent().done();
 
   protected final String CALLING_PROCESS_KEY = "callingProcess";
+
   protected final BpmnModelInstance CALLING_PROCESS = Bpmn.createExecutableProcess(CALLING_PROCESS_KEY)
     .camundaHistoryTimeToLive(5)
     .startEvent()
@@ -244,12 +247,14 @@ public class HistoryCleanupRemovalTimeTest {
     .endEvent().done();
 
   protected final BpmnModelInstance CALLING_PROCESS_WO_TTL = Bpmn.createExecutableProcess(CALLING_PROCESS_KEY)
+      .camundaHistoryTimeToLive(null)
       .startEvent()
         .callActivity()
           .calledElement(PROCESS_KEY)
       .endEvent().done();
 
   protected final String CALLING_PROCESS_CALLS_DMN_KEY = "callingProcessCallsDmn";
+
   protected final BpmnModelInstance CALLING_PROCESS_CALLS_DMN = Bpmn.createExecutableProcess(CALLING_PROCESS_CALLS_DMN_KEY)
     .camundaHistoryTimeToLive(5)
     .startEvent()
@@ -258,7 +263,7 @@ public class HistoryCleanupRemovalTimeTest {
         .camundaDecisionRef("dish-decision")
     .endEvent().done();
 
-  protected final Date END_DATE = new Date(1363608000000L);
+  protected final Date END_DATE = new GregorianCalendar(2013, Calendar.MARCH, 18, 13, 0, 0).getTime();
 
   @Test
   @Deployment(resources = {
@@ -525,7 +530,6 @@ public class HistoryCleanupRemovalTimeTest {
     engineConfiguration.setHistoryTimeToLive("5");
 
     testRule.deploy(CALLING_PROCESS_WO_TTL);
-
     testRule.deploy(PROCESS);
 
     runtimeService.startProcessInstanceByKey(CALLING_PROCESS_KEY);

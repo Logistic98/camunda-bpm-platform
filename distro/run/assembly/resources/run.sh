@@ -5,14 +5,14 @@ BASEDIR=$(dirname "$0")
 PARENTDIR=$(builtin cd "$BASEDIR/.."; pwd)
 DEPLOYMENT_DIR=$PARENTDIR/configuration/resources
 WEBAPPS_PATH=$BASEDIR/webapps/
+OAUTH2_PATH=$BASEDIR/oauth2/
 REST_PATH=$BASEDIR/rest/
-SWAGGER_PATH=$BASEDIR/swaggerui
 EXAMPLE_PATH=$BASEDIR/example
 PID_PATH=$BASEDIR/run.pid
 OPTIONS_HELP="Options:
   --webapps    - Enables the Camunda Platform Webapps
+  --oauth2     - Enables the Camunda Platform Spring Security OAuth2 integration
   --rest       - Enables the REST API
-  --swaggerui  - Enables the Swagger UI
   --example    - Enables the example application
   --production - Applies the production.yaml configuration file
   --detached   - Starts Camunda Run as a detached process
@@ -21,7 +21,6 @@ OPTIONS_HELP="Options:
 # set environment parameters
 optionalComponentChosen=false
 restChosen=false
-swaggeruiChosen=false
 productionChosen=false
 detachProcess=false
 classPath=$PARENTDIR/configuration/userlib/,$PARENTDIR/configuration/keystore/
@@ -41,6 +40,14 @@ if [ "$1" = "start" ] ; then
     fi
   fi
 
+  EXPECTED_JAVA_VERSION=17
+  JAVA_VERSION=$("$JAVA" -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^0\./s///' | cut -d'.' -f1)
+  echo Java version is $("$JAVA" -version 2>&1 | head -1 | cut -d'"' -f2)
+  if [[ "$JAVA_VERSION" -lt "$EXPECTED_JAVA_VERSION" ]]; then
+    echo You must use at least JDK 17 to start Camunda Platform Run.
+    exit 1
+  fi
+
   if [ "x$JAVA_OPTS" != "x" ]; then
     echo JAVA_OPTS: $JAVA_OPTS
   fi
@@ -52,15 +59,14 @@ if [ "$1" = "start" ] ; then
                      classPath=$WEBAPPS_PATH,$classPath
                      echo WebApps enabled
                      ;;
+      --oauth2 )     optionalComponentChosen=true
+                     classPath=$OAUTH2_PATH,$classPath
+                     echo Spring Security OAuth2 enabled
+                     ;;
       --rest )       optionalComponentChosen=true
                      restChosen=true
                      classPath=$REST_PATH,$classPath
                      echo REST API enabled
-                     ;;
-      --swaggerui )  optionalComponentChosen=true
-                     swaggeruiChosen=true
-                     classPath=$SWAGGER_PATH,$classPath
-                     echo Swagger UI enabled
                      ;;
       --example )    optionalComponentChosen=true
                      classPath=$EXAMPLE_PATH,$classPath
@@ -76,29 +82,25 @@ if [ "$1" = "start" ] ; then
       --help )       printf "%s" "$OPTIONS_HELP"
                      exit 0
                      ;;
-      * )            exit 1
+      * )            printf "Unexpected argument '%s'!" "$1"
+                     printf "%s" "$OPTIONS_HELP"
+                     exit 1
+                     ;;
     esac
     shift
   done
 
   # If no optional component is chosen, enable REST and Webapps.
-  # If production mode is not chosen, also enable Swagger UI and the example application.
+  # If production mode is not chosen, also enable the example application.
   if [ "$optionalComponentChosen" = "false" ]; then
     restChosen=true
     echo REST API enabled
     echo WebApps enabled
     if [ "$productionChosen" = "false" ]; then
-      swaggeruiChosen=true
-      echo Swagger UI enabled
       echo Invoice Example included - needs to be enabled in application configuration as well
-      classPath=$SWAGGER_PATH,$EXAMPLE_PATH,$classPath
+      classPath=$EXAMPLE_PATH,$classPath
     fi
     classPath=$WEBAPPS_PATH,$REST_PATH,$classPath
-  fi
-
-  # if Swagger UI is enabled but REST is not, warn the user
-  if [ "$swaggeruiChosen" = "true" ] && [ "$restChosen" = "false" ]; then
-    echo You did not enable the REST API. Swagger UI will not be able to send any requests to this Camunda Platform Run instance.
   fi
 
   echo classpath: $classPath

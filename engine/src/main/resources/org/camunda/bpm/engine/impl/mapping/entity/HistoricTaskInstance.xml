@@ -50,7 +50,8 @@
         DUE_DATE_,
         FOLLOW_UP_DATE_,
         TENANT_ID_,
-        REMOVAL_TIME_
+        REMOVAL_TIME_,
+        TASK_STATE_
       ) values (
         #{id ,jdbcType=VARCHAR},
         #{processDefinitionKey, jdbcType=VARCHAR},
@@ -77,7 +78,8 @@
         #{dueDate, jdbcType=TIMESTAMP},
         #{followUpDate, jdbcType=TIMESTAMP},
         #{tenantId, jdbcType=VARCHAR},
-        #{removalTime, jdbcType=TIMESTAMP}
+        #{removalTime, jdbcType=TIMESTAMP},
+        #{taskState, jdbcType=VARCHAR}
       )
   </insert>
 
@@ -99,7 +101,8 @@
       DUE_DATE_ = #{dueDate, jdbcType=TIMESTAMP},
       FOLLOW_UP_DATE_ = #{followUpDate, jdbcType=TIMESTAMP},
       CASE_INST_ID_ = #{caseInstanceId, jdbcType=VARCHAR},
-      CASE_DEF_ID_ = #{caseDefinitionId, jdbcType=VARCHAR}
+      CASE_DEF_ID_ = #{caseDefinitionId, jdbcType=VARCHAR},
+      TASK_STATE_ = #{taskState, jdbcType=VARCHAR}
       <if test="endTime!=null">
         , END_TIME_ = #{endTime, jdbcType=TIMESTAMP}
         , DURATION_ = #{durationInMillis, jdbcType=BIGINT}
@@ -110,33 +113,133 @@
 
   <update id="updateHistoricTaskInstancesByRootProcessInstanceId"
           parameterType="java.util.Map">
-    update ${prefix}ACT_HI_TASKINST set
+    update
+    <if test="maxResults != null">
+      ${limitBeforeWithoutOffset}
+    </if>
+    ${prefix}ACT_HI_TASKINST set
     REMOVAL_TIME_ = #{removalTime, jdbcType=TIMESTAMP}
 
     where ROOT_PROC_INST_ID_ = #{rootProcessInstanceId, jdbcType=VARCHAR}
+    <if test="maxResults != null">
+      and (REMOVAL_TIME_ is null or REMOVAL_TIME_ != #{removalTime, jdbcType=TIMESTAMP})
+      ${limitAfterWithoutOffset}
+    </if>
+  </update>
+
+  <update id="updateHistoricTaskInstancesByRootProcessInstanceId_postgres"
+          parameterType="java.util.Map">
+    update ${prefix}ACT_HI_TASKINST set
+    REMOVAL_TIME_ = #{removalTime, jdbcType=TIMESTAMP}
+    <if test="maxResults != null">
+      ${limitBeforeInUpdate} ${prefix}ACT_HI_TASKINST
+    </if>
+
+    where ROOT_PROC_INST_ID_ = #{rootProcessInstanceId, jdbcType=VARCHAR}
+    <if test="maxResults != null">
+      and (REMOVAL_TIME_ is null or REMOVAL_TIME_ != #{removalTime, jdbcType=TIMESTAMP})
+      ${limitAfterInUpdate}
+    </if>
+  </update>
+
+  <update id="updateHistoricTaskInstancesByRootProcessInstanceId_mysql"
+          parameterType="java.util.Map">
+    update ${prefix}ACT_HI_TASKINST
+    <choose>
+      <when test="maxResults != null">
+        ${limitBeforeInUpdate} ${prefix}ACT_HI_TASKINST
+      </when>
+      <otherwise>
+        set REMOVAL_TIME_ = #{removalTime, jdbcType=TIMESTAMP}
+      </otherwise>
+    </choose>
+
+    where ROOT_PROC_INST_ID_ = #{rootProcessInstanceId, jdbcType=VARCHAR}
+    <if test="maxResults != null">
+      and (REMOVAL_TIME_ is null or REMOVAL_TIME_ != #{removalTime, jdbcType=TIMESTAMP})
+      ${limitAfterInUpdate}
+      set REMOVAL_TIME_ = #{removalTime, jdbcType=TIMESTAMP}
+    </if>
   </update>
 
   <update id="updateHistoricTaskInstancesByRootProcessInstanceId_mssql"
           parameterType="java.util.Map">
-    update RES set
+    update
+    <if test="maxResults != null">
+      ${limitBeforeWithoutOffset}
+    </if>
+    RES set
     RES.REMOVAL_TIME_ = #{removalTime, jdbcType=TIMESTAMP}
     FROM ${prefix}ACT_HI_TASKINST RES WITH (FORCESEEK)
     where RES.ROOT_PROC_INST_ID_ = #{rootProcessInstanceId, jdbcType=VARCHAR}
+    <if test="maxResults != null">
+      and (REMOVAL_TIME_ is null or REMOVAL_TIME_ != #{removalTime, jdbcType=TIMESTAMP})
+      ${limitAfterWithoutOffset}
+    </if>
   </update>
 
   <update id="updateHistoricTaskInstancesByProcessInstanceId"
           parameterType="java.util.Map">
-    update ${prefix}ACT_HI_TASKINST
+    update
+    <if test="maxResults != null">
+      ${limitBeforeWithoutOffset}
+    </if>
+    ${prefix}ACT_HI_TASKINST
       set REMOVAL_TIME_ = #{removalTime, jdbcType=TIMESTAMP}
       where PROC_INST_ID_ = #{processInstanceId, jdbcType=VARCHAR}
+      <if test="maxResults != null">
+        and (REMOVAL_TIME_ is null or REMOVAL_TIME_ != #{removalTime, jdbcType=TIMESTAMP})
+        ${limitAfterWithoutOffset}
+      </if>
+  </update>
+
+  <update id="updateHistoricTaskInstancesByProcessInstanceId_postgres"
+          parameterType="java.util.Map">
+    update ${prefix}ACT_HI_TASKINST
+      set REMOVAL_TIME_ = #{removalTime, jdbcType=TIMESTAMP}
+      <if test="maxResults != null">
+        ${limitBeforeInUpdate} ${prefix}ACT_HI_TASKINST
+      </if>
+      where PROC_INST_ID_ = #{processInstanceId, jdbcType=VARCHAR}
+      <if test="maxResults != null">
+        and (REMOVAL_TIME_ is null or REMOVAL_TIME_ != #{removalTime, jdbcType=TIMESTAMP})
+        ${limitAfterInUpdate}
+      </if>
+  </update>
+
+  <update id="updateHistoricTaskInstancesByProcessInstanceId_mysql"
+          parameterType="java.util.Map">
+    update ${prefix}ACT_HI_TASKINST
+      <choose>
+        <when test="maxResults != null">
+          ${limitBeforeInUpdate} ${prefix}ACT_HI_TASKINST
+        </when>
+        <otherwise>
+          set REMOVAL_TIME_ = #{removalTime, jdbcType=TIMESTAMP}
+        </otherwise>
+      </choose>
+      where PROC_INST_ID_ = #{processInstanceId, jdbcType=VARCHAR}
+      <if test="maxResults != null">
+        and (REMOVAL_TIME_ is null or REMOVAL_TIME_ != #{removalTime, jdbcType=TIMESTAMP})
+        ${limitAfterInUpdate}
+        set REMOVAL_TIME_ = #{removalTime, jdbcType=TIMESTAMP}
+      </if>
   </update>
 
   <update id="updateHistoricTaskInstancesByProcessInstanceId_mssql"
           parameterType="java.util.Map">
-    update RES set
+    update
+    <if test="maxResults != null">
+      ${limitBeforeWithoutOffset}
+    </if>
+    RES set
     RES.REMOVAL_TIME_ = #{removalTime, jdbcType=TIMESTAMP}
     FROM ${prefix}ACT_HI_TASKINST RES WITH (FORCESEEK)
       where RES.PROC_INST_ID_ = #{processInstanceId, jdbcType=VARCHAR}
+      <if test="maxResults != null">
+        and (REMOVAL_TIME_ is null or REMOVAL_TIME_ != #{removalTime, jdbcType=TIMESTAMP})
+        ${limitAfterWithoutOffset}
+      </if>
   </update>
 
   <!-- HISTORIC TASK INSTANCE SELECT -->
@@ -245,6 +348,7 @@
     <result property="followUpDate" column="FOLLOW_UP_DATE_" jdbcType="TIMESTAMP" />
     <result property="tenantId" column="TENANT_ID_" jdbcType="VARCHAR" />
     <result property="removalTime" column="REMOVAL_TIME_" jdbcType="TIMESTAMP"/>
+    <result property="taskState" column="TASK_STATE_" jdbcType="VARCHAR"/>
   </resultMap>
 
   <!-- HISTORIC TASK INSTANCE SELECT -->
@@ -377,6 +481,9 @@
             </if>
             <if test="query.processInstanceId != null">
               ${queryType} RES.PROC_INST_ID_ = #{query.processInstanceId}
+            </if>
+            <if test="query.rootProcessInstanceId != null">
+              ${queryType} RES.ROOT_PROC_INST_ID_ = #{query.rootProcessInstanceId}
             </if>
             <if test="query.processInstanceBusinessKey != null">
               ${queryType} HPI.BUSINESS_KEY_ = #{query.processInstanceBusinessKey}
@@ -631,6 +738,7 @@
       <if test="parameter.finishedAfter == null and parameter.finishedAt == null">
         and RES.END_TIME_ is not null
       </if>
+      and TASK_DEF_KEY_ is not null
     </where>
 
     ORDER BY RES.END_TIME_ ASC
@@ -651,6 +759,7 @@
         and RES.START_TIME_ = #{parameter.startedAt}
       </if>
       and RES.END_TIME_ is null
+      and TASK_DEF_KEY_ is not null
     </where>
 
     ORDER BY RES.START_TIME_ ASC

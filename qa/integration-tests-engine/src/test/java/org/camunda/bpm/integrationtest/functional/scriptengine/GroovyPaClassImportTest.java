@@ -47,14 +47,15 @@ public class GroovyPaClassImportTest extends AbstractFoxPlatformIntegrationTest 
     + "<jboss-deployment-structure>"
     + "  <deployment>"
     + "    <dependencies>"
-    + "      <module name=\"org.codehaus.groovy.groovy-all\" services=\"import\" />"
+    + "      <module name=\"org.apache.groovy.groovy-all\" services=\"import\" />"
     + "    </dependencies>"
     + "  </deployment>"
     + "</jboss-deployment-structure>";
 
   protected static StringAsset createScriptTaskProcess(String scriptFormat, String scriptText, String pdk) {
     BpmnModelInstance modelInstance = Bpmn.createExecutableProcess(pdk)
-      .startEvent()
+        .camundaHistoryTimeToLive(180)
+        .startEvent()
       .scriptTask()
         .scriptFormat(scriptFormat)
         .scriptText(scriptText)

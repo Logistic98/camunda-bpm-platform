@@ -29,7 +29,7 @@ import org.camunda.bpm.spring.boot.starter.configuration.impl.AbstractCamundaCon
 import org.camunda.bpm.spring.boot.starter.property.AdminUserProperty;
 import org.springframework.beans.BeanUtils;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -105,8 +105,4 @@ public class CreateAdminUserConfiguration extends AbstractCamundaConfiguration {
     return newUser;
   }
 
-  @Override
-  public String toString() {
-    return createToString(Collections.singletonMap("adminUser", adminUser));
-  }
 }

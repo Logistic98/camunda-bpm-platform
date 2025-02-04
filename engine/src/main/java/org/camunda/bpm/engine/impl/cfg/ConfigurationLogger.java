@@ -17,8 +17,8 @@
 package org.camunda.bpm.engine.impl.cfg;
 
 import javax.naming.NamingException;
-
 import org.camunda.bpm.engine.ProcessEngineException;
+import org.camunda.bpm.engine.exception.NotValidException;
 import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 
 /**
@@ -91,10 +91,10 @@ public class ConfigurationLogger extends ProcessEngineLogger {
       "Invalid value '{}' for configuration property '{}'.", propertyValue, propertyName), e);
   }
 
-  public void databaseConnectionAccessException(Exception cause) {
-    logError(
+  public ProcessEngineException databaseConnectionAccessException(Exception cause) {
+    return new ProcessEngineException(exceptionMessage(
       "012",
-      "Exception on accessing the database connection: {}", cause.getMessage());
+      "Exception on accessing the database connection: {}", cause.getMessage()), cause);
   }
 
   public void databaseConnectionCloseException(Exception cause) {
@@ -114,4 +114,43 @@ public class ConfigurationLogger extends ProcessEngineLogger {
     logError("015", "Exception while reading configuration property: {}", e.getMessage());
   }
 
+  /**
+   * Method for logging message when model TTL longer than global TTL.
+   *
+   * @param definitionKey the correlated definition key with which history TTL is related to.
+   *                      For processes related to httl, that is the processDefinitionKey, for cases the case definition key
+   *                      whereas for decisions is the decision definition key.
+   */
+  public void logModelHTTLLongerThanGlobalConfiguration(String definitionKey) {
+    logWarn(
+        "017", "definitionKey: {}; "
+            + "The specified Time To Live (TTL) in the model is longer than the global TTL configuration. "
+            + "The historic data related to this model will be cleaned up at later point comparing to the other processes.",
+            definitionKey);
+  }
+
+  public NotValidException logErrorNoTTLConfigured() {
+    return new NotValidException(exceptionMessage("018",
+        "History Time To Live (TTL) cannot be null. "
+        + "TTL is necessary for the History Cleanup to work. The following options are possible:\n"
+        + "* Set historyTimeToLive in the model\n"
+        + "* Set a default historyTimeToLive as a global process engine configuration\n"
+        + "* (Not recommended) Deactivate the enforceTTL config to disable this check"));
+  }
+
+  public ProcessEngineException invalidTransactionIsolationLevel(String transactionIsolationLevel) {
+    return new ProcessEngineException(exceptionMessage("019",
+        "The transaction isolation level set for the database is '{}' which differs from the recommended value. "
+            + "Please change the isolation level to 'READ_COMMITTED' or set property 'skipIsolationLevelCheck' to true. "
+            + "Please keep in mind that some levels are known to cause deadlocks and other unexpected behaviours.",
+        transactionIsolationLevel));
+
+  }
+
+  public void logSkippedIsolationLevelCheck(String transactionIsolationLevel) {
+    logWarn("020", "The transaction isolation level set for the database is '{}' which differs from the recommended value "
+            + "and property skipIsolationLevelCheck is enabled. "
+            + "Please keep in mind that levels different from 'READ_COMMITTED' are known to cause deadlocks and other unexpected behaviours.",
+        transactionIsolationLevel);
+  }
 }

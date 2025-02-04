@@ -21,6 +21,7 @@ import static org.camunda.bpm.engine.impl.util.EnsureUtil.ensureNotNull;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,7 +40,9 @@ import org.camunda.bpm.engine.impl.cmd.CreateTaskCmd;
 import org.camunda.bpm.engine.impl.cmd.DelegateTaskCmd;
 import org.camunda.bpm.engine.impl.cmd.DeleteAttachmentCmd;
 import org.camunda.bpm.engine.impl.cmd.DeleteGroupIdentityLinkCmd;
+import org.camunda.bpm.engine.impl.cmd.DeleteProcessInstanceCommentCmd;
 import org.camunda.bpm.engine.impl.cmd.DeleteTaskCmd;
+import org.camunda.bpm.engine.impl.cmd.DeleteTaskCommentCmd;
 import org.camunda.bpm.engine.impl.cmd.DeleteUserIdentityLinkCmd;
 import org.camunda.bpm.engine.impl.cmd.GetAttachmentCmd;
 import org.camunda.bpm.engine.impl.cmd.GetAttachmentContentCmd;
@@ -63,9 +66,14 @@ import org.camunda.bpm.engine.impl.cmd.RemoveTaskVariablesCmd;
 import org.camunda.bpm.engine.impl.cmd.ResolveTaskCmd;
 import org.camunda.bpm.engine.impl.cmd.SaveAttachmentCmd;
 import org.camunda.bpm.engine.impl.cmd.SaveTaskCmd;
+import org.camunda.bpm.engine.impl.cmd.SetTaskDescriptionCmd;
+import org.camunda.bpm.engine.impl.cmd.SetTaskDueDateCmd;
+import org.camunda.bpm.engine.impl.cmd.SetTaskFollowUpDateCmd;
+import org.camunda.bpm.engine.impl.cmd.SetTaskNameCmd;
 import org.camunda.bpm.engine.impl.cmd.SetTaskOwnerCmd;
 import org.camunda.bpm.engine.impl.cmd.SetTaskPriorityCmd;
 import org.camunda.bpm.engine.impl.cmd.SetTaskVariablesCmd;
+import org.camunda.bpm.engine.impl.cmd.UpdateCommentCmd;
 import org.camunda.bpm.engine.impl.util.ExceptionUtil;
 import org.camunda.bpm.engine.task.Attachment;
 import org.camunda.bpm.engine.task.Comment;
@@ -196,6 +204,26 @@ public class TaskServiceImpl extends ServiceImpl implements TaskService {
 
   public void setPriority(String taskId, int priority) {
     commandExecutor.execute(new SetTaskPriorityCmd(taskId, priority) );
+  }
+
+  @Override
+  public void setName(String taskId, String name) {
+    commandExecutor.execute(new SetTaskNameCmd(taskId, name));
+  }
+
+  @Override
+  public void setDescription(String taskId, String description) {
+    commandExecutor.execute(new SetTaskDescriptionCmd(taskId, description));
+  }
+
+  @Override
+  public void setDueDate(String taskId, Date dueDate) {
+    commandExecutor.execute(new SetTaskDueDateCmd(taskId, dueDate));
+  }
+
+  @Override
+  public void setFollowUpDate(String taskId, Date followUpDate) {
+    commandExecutor.execute(new SetTaskFollowUpDateCmd(taskId, followUpDate));
   }
 
   public TaskQuery createTaskQuery() {
@@ -353,6 +381,30 @@ public class TaskServiceImpl extends ServiceImpl implements TaskService {
 
   public Comment createComment(String taskId, String processInstance, String message) {
     return commandExecutor.execute(new AddCommentCmd(taskId, processInstance, message));
+  }
+
+  public void deleteTaskComment(String taskId, String commentId) {
+    commandExecutor.execute(new DeleteTaskCommentCmd(taskId, commentId));
+  }
+
+  public void deleteProcessInstanceComment(String processInstanceId, String commentId) {
+    commandExecutor.execute(new DeleteProcessInstanceCommentCmd(processInstanceId, commentId));
+  }
+
+  public void deleteTaskComments(String taskId) {
+    commandExecutor.execute(new DeleteTaskCommentCmd(taskId));
+  }
+
+  public void deleteProcessInstanceComments(String processInstanceId) {
+    commandExecutor.execute(new DeleteProcessInstanceCommentCmd(processInstanceId));
+  }
+
+  public void updateTaskComment(String taskId, String commentId, String message) {
+    commandExecutor.execute(new UpdateCommentCmd(taskId, null, commentId, message));
+  }
+
+  public void updateProcessInstanceComment(String processInstanceId, String commentId, String message) {
+    commandExecutor.execute(new UpdateCommentCmd(null, processInstanceId, commentId, message));
   }
 
   public List<Comment> getTaskComments(String taskId) {

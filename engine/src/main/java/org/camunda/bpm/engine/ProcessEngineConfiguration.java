@@ -20,7 +20,6 @@ import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import javax.sql.DataSource;
-
 import org.camunda.bpm.engine.authorization.Authorization;
 import org.camunda.bpm.engine.delegate.JavaDelegate;
 import org.camunda.bpm.engine.identity.PasswordPolicy;
@@ -31,7 +30,6 @@ import org.camunda.bpm.engine.impl.cfg.BeansConfigurationHelper;
 import org.camunda.bpm.engine.impl.cfg.StandaloneInMemProcessEngineConfiguration;
 import org.camunda.bpm.engine.impl.cfg.StandaloneProcessEngineConfiguration;
 import org.camunda.bpm.engine.impl.persistence.entity.JobEntity;
-import org.camunda.bpm.engine.impl.telemetry.TelemetryRegistry;
 import org.camunda.bpm.engine.runtime.DeserializationTypeValidator;
 import org.camunda.bpm.engine.variable.type.ValueTypeResolver;
 
@@ -255,10 +253,6 @@ public abstract class ProcessEngineConfiguration {
   protected Integer jdbcStatementTimeout;
   protected boolean jdbcBatchProcessing = true;
 
-  protected String jpaPersistenceUnitName;
-  protected Object jpaEntityManagerFactory;
-  protected boolean jpaHandleTransaction;
-  protected boolean jpaCloseEntityManager;
   protected int defaultNumberOfRetries = JobEntity.DEFAULT_RETRIES;
 
   protected ClassLoader classLoader;
@@ -416,8 +410,6 @@ public abstract class ProcessEngineConfiguration {
 
   /** An unique installation identifier */
   protected String installationId;
-
-  protected TelemetryRegistry telemetryRegistry;
 
   /**
    * On failing activities we can skip output mapping. This might be helpful if output mapping uses variables that might not
@@ -805,41 +797,6 @@ public abstract class ProcessEngineConfiguration {
     return this;
   }
 
-  public Object getJpaEntityManagerFactory() {
-    return jpaEntityManagerFactory;
-  }
-
-  public ProcessEngineConfiguration setJpaEntityManagerFactory(Object jpaEntityManagerFactory) {
-    this.jpaEntityManagerFactory = jpaEntityManagerFactory;
-    return this;
-  }
-
-  public boolean isJpaHandleTransaction() {
-    return jpaHandleTransaction;
-  }
-
-  public ProcessEngineConfiguration setJpaHandleTransaction(boolean jpaHandleTransaction) {
-    this.jpaHandleTransaction = jpaHandleTransaction;
-    return this;
-  }
-
-  public boolean isJpaCloseEntityManager() {
-    return jpaCloseEntityManager;
-  }
-
-  public ProcessEngineConfiguration setJpaCloseEntityManager(boolean jpaCloseEntityManager) {
-    this.jpaCloseEntityManager = jpaCloseEntityManager;
-    return this;
-  }
-
-  public String getJpaPersistenceUnitName() {
-    return jpaPersistenceUnitName;
-  }
-
-  public void setJpaPersistenceUnitName(String jpaPersistenceUnitName) {
-    this.jpaPersistenceUnitName = jpaPersistenceUnitName;
-  }
-
   public String getDataSourceJndiName() {
     return dataSourceJndiName;
   }
@@ -1093,15 +1050,6 @@ public abstract class ProcessEngineConfiguration {
 
   public ProcessEngineConfiguration setInstallationId(String installationId) {
     this.installationId = installationId;
-    return this;
-  }
-
-  public TelemetryRegistry getTelemetryRegistry() {
-    return telemetryRegistry;
-  }
-
-  public ProcessEngineConfiguration setTelemetryRegistry(TelemetryRegistry telemetryRegistry) {
-    this.telemetryRegistry = telemetryRegistry;
     return this;
   }
 

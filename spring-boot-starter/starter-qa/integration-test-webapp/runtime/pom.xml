@@ -6,7 +6,7 @@
   <parent>
     <groupId>org.camunda.bpm.springboot.project</groupId>
     <artifactId>qa-webapp</artifactId>
-    <version>7.20.0-SNAPSHOT</version>
+    <version>7.23.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>qa-webapp-ce-runtime</artifactId>
@@ -15,10 +15,10 @@
   <properties>
     <version.jersey-json>1.15</version.jersey-json>
     <version.h2>1.4.199</version.h2>
-    <version.glassfish-jaxb>2.3.1</version.glassfish-jaxb>
+    <version.jaxb-api>2.3.1</version.jaxb-api>
     <version.jersey-apache-client>1.15</version.jersey-apache-client>
     <version.junit>4.12</version.junit>
-    <version.chromedriver>78.0.3904.70</version.chromedriver>
+    <version.chromedriver>112.0.5615.49</version.chromedriver>
 
     <http.port>58080</http.port>
     <http.ctx-path.webapp>camunda/</http.ctx-path.webapp>
@@ -30,6 +30,7 @@
       <id>integration-test-spring-boot-starter</id>
 
       <dependencies>
+
         <!-- Web Applications -->
         <dependency>
           <groupId>org.camunda.bpm.springboot</groupId>
@@ -80,32 +81,15 @@
         </dependency>
 
         <dependency>
+          <groupId>org.apache.httpcomponents</groupId>
+          <artifactId>httpclient</artifactId>
+          <version>${version.httpclient}</version>
+          <scope>test</scope>
+        </dependency>
+
+        <dependency>
           <groupId>org.seleniumhq.selenium</groupId>
           <artifactId>selenium-java</artifactId>
-          <version>${version.selenium}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>org.seleniumhq.selenium</groupId>
-          <artifactId>selenium-remote-driver</artifactId>
-          <version>${version.selenium}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>org.seleniumhq.selenium</groupId>
-          <artifactId>selenium-chrome-driver</artifactId>
-          <version>${version.selenium}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>org.seleniumhq.selenium</groupId>
-          <artifactId>selenium-api</artifactId>
-          <version>${version.selenium}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>org.seleniumhq.selenium</groupId>
-          <artifactId>selenium-support</artifactId>
           <version>${version.selenium}</version>
         </dependency>
 
@@ -113,6 +97,25 @@
           <groupId>com.sun.jersey</groupId>
           <artifactId>jersey-json</artifactId>
           <version>${version.jersey-json}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>org.graalvm.js</groupId>
+          <artifactId>js</artifactId>
+          <version>${version.graal.js}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>org.graalvm.js</groupId>
+          <artifactId>js-scriptengine</artifactId>
+          <version>${version.graal.js}</version>
+        </dependency>
+
+        <dependency>
+          <groupId>javax.xml.bind</groupId>
+          <artifactId>jaxb-api</artifactId>
+          <version>${version.jaxb-api}</version>
+          <scope>test</scope>
         </dependency>
 
       </dependencies>

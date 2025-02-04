@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.camunda.bpm.engine.impl.context.Context;
@@ -43,6 +42,7 @@ import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.jobexecutor.DefaultJobPriorityProvider;
 import org.camunda.bpm.engine.impl.jobexecutor.JobHandler;
 import org.camunda.bpm.engine.impl.jobexecutor.JobHandlerConfiguration;
+import org.camunda.bpm.engine.impl.jobexecutor.historycleanup.HistoryCleanupHelper;
 import org.camunda.bpm.engine.impl.pvm.process.ProcessDefinitionImpl;
 import org.camunda.bpm.engine.impl.util.ExceptionUtil;
 import org.camunda.bpm.engine.impl.util.StringUtil;
@@ -114,6 +114,8 @@ public abstract class JobEntity extends AcquirableJobEntity
 
   protected Map<String, Class> persistedDependentEntities;
 
+  protected String batchId;
+
   public void execute(CommandContext commandContext) {
     if (executionId != null) {
       ExecutionEntity execution = getExecution();
@@ -146,6 +148,31 @@ public abstract class JobEntity extends AcquirableJobEntity
 
   public void init(CommandContext commandContext) {
     // nothing to do
+  }
+
+  public void init(CommandContext commandContext, boolean shouldResetLock, boolean shouldCallDeleteHandler) {
+    if (shouldCallDeleteHandler) {
+      // clean additional data related to this job
+      JobHandler jobHandler = getJobHandler();
+      if (jobHandler != null) {
+        jobHandler.onDelete(getJobHandlerConfiguration(), this);
+      }
+    }
+
+    // cancel the retries -> will resolve job incident if present
+    int retries = HistoryCleanupHelper.getMaxRetries();
+    setRetries(retries);
+
+    // delete the job's exception byte array and exception message
+    if (exceptionByteArrayId != null) {
+      clearFailedJobException();
+    }
+
+    // clean the lock information
+    if (shouldResetLock) {
+      setLockOwner(null);
+      setLockExpirationTime(null);
+    }
   }
 
   public void insert() {
@@ -222,6 +249,7 @@ public abstract class JobEntity extends AcquirableJobEntity
       this.execution = execution;
       executionId = execution.getId();
       processInstanceId = execution.getProcessInstanceId();
+      rootProcessInstanceId = execution.getRootProcessInstanceId();
       // if the execution is suspended, suspend the job entity as well to prevent unwanted job execution
       if(execution.isSuspended()) {
         suspensionState = execution.getSuspensionState();
@@ -232,6 +260,7 @@ public abstract class JobEntity extends AcquirableJobEntity
       this.execution.removeJob(this);
       this.execution = execution;
       processInstanceId = null;
+      rootProcessInstanceId = null;
       executionId = null;
     }
   }
@@ -669,12 +698,21 @@ public abstract class JobEntity extends AcquirableJobEntity
     this.lastFailureLogId = lastFailureLogId;
   }
 
+  @Override
   public String getFailedActivityId() {
     return failedActivityId;
   }
 
   public void setFailedActivityId(String failedActivityId) {
     this.failedActivityId = failedActivityId;
+  }
+
+  public String getBatchId() {
+    return batchId;
+  }
+
+  public void setBatchId(String batchId) {
+    this.batchId = batchId;
   }
 
   @Override
@@ -688,7 +726,6 @@ public abstract class JobEntity extends AcquirableJobEntity
            + ", executionId=" + executionId
            + ", processInstanceId=" + processInstanceId
            + ", isExclusive=" + isExclusive
-           + ", isExclusive=" + isExclusive
            + ", jobDefinitionId=" + jobDefinitionId
            + ", jobHandlerType=" + jobHandlerType
            + ", jobHandlerConfiguration=" + jobHandlerConfiguration
@@ -699,6 +736,7 @@ public abstract class JobEntity extends AcquirableJobEntity
            + ", deploymentId=" + deploymentId
            + ", priority=" + priority
            + ", tenantId=" + tenantId
+           + ", batchId=" + batchId
            + "]";
   }
 

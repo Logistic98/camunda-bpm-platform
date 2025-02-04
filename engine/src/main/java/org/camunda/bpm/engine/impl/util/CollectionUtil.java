@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 /**
@@ -75,6 +76,14 @@ public class CollectionUtil {
     list.add(value);
   }
 
+  public static <S, T> void mergeMapsOfLists(Map<S, List<T>> map, Map<S, List<T>> toAdd) {
+    for (Entry<S, List<T>> entry : toAdd.entrySet()) {
+      for (T listener : entry.getValue()) {
+        CollectionUtil.addToMapOfLists(map, entry.getKey(), listener);
+      }
+    }
+  }
+
   public static <S, T> void addToMapOfSets(Map<S, Set<T>> map, S key, T value) {
     Set<T> set = map.get(key);
     if (set == null) {
@@ -120,6 +129,20 @@ public class CollectionUtil {
       result.add(iterator.next());
     }
     return result;
+  }
+
+  public static <T> T getLastElement(final Iterable<T> elements) {
+    T lastElement = null;
+
+    if (elements instanceof List) {
+      return ((List<T>) elements).get(((List<T>) elements).size() - 1);
+    }
+
+    for (T element : elements) {
+      lastElement = element;
+    }
+
+    return lastElement;
   }
 
   public static boolean isEmpty(Collection<?> collection) {

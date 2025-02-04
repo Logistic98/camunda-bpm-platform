@@ -17,19 +17,15 @@
 
 'use strict';
 
-var fs = require('fs');
-
-var template = fs.readFileSync(__dirname + '/users.html', 'utf8');
-var searchConfig = JSON.parse(
-  fs.readFileSync(__dirname + '/users-search-plugin-config.json', 'utf8')
-);
+var template = require('./users.html?raw');
+var searchConfig = require('./users-search-plugin-config.json');
 
 var debouncePromiseFactory = require('camunda-bpm-sdk-js').utils
   .debouncePromiseFactory;
 var debounceQuery = debouncePromiseFactory();
 var debounceCount = debouncePromiseFactory();
 
-var angular = require('../../../../../camunda-commons-ui/vendor/angular');
+var angular = require('camunda-commons-ui/vendor/angular');
 
 var Controller = [
   '$scope',
@@ -139,15 +135,6 @@ var Controller = [
           }, 0);
         });
     }
-
-    $scope.availableOperations = {};
-    UserResource.OPTIONS()
-      .$promise.then(function(response) {
-        angular.forEach(response.links, function(link) {
-          $scope.availableOperations[link.rel] = true;
-        });
-      })
-      .catch(angular.noop);
 
     $scope.$root.showBreadcrumbs = true;
 

@@ -22,7 +22,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+import java.util.Optional;
+import org.camunda.bpm.engine.ProcessEngineConfiguration;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
+import org.camunda.bpm.engine.impl.context.Context;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.util.ClockUtil;
 
@@ -36,6 +39,23 @@ public abstract class HistoryCleanupHelper {
   private static final SimpleDateFormat TIME_FORMAT_WITHOUT_SECONDS_WITH_TIMEZONE = new SimpleDateFormat("yyyy-MM-ddHH:mmZ");
 
   private static final SimpleDateFormat DATE_FORMAT_WITHOUT_TIME = new SimpleDateFormat("yyyy-MM-dd");
+
+  /**
+   * Returns the max retries used for cleanup jobs. If the configuration is null, the default value used will be
+   * defaultNumberOfRetries, the configuration used for all jobs.
+   *
+   * @return the effective max number of retries
+   */
+  public static int getMaxRetries() {
+    ProcessEngineConfigurationImpl config = Context.getProcessEngineConfiguration();
+    boolean isConfiguredByUser = (config.getHistoryCleanupDefaultNumberOfRetries() != Integer.MIN_VALUE);
+
+    if (!isConfiguredByUser) {
+      return config.getDefaultNumberOfRetries();
+    }
+
+    return config.getHistoryCleanupDefaultNumberOfRetries();
+  }
 
   /**
    * Checks if given date is within a batch window. Batch window start time is checked inclusively.

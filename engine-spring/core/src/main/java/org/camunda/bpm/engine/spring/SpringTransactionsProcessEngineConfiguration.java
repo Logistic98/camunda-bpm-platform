@@ -29,13 +29,11 @@ import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.RepositoryService;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.camunda.bpm.engine.impl.cfg.StandaloneProcessEngineConfiguration;
-import org.camunda.bpm.engine.impl.db.sql.DbSqlSessionFactory;
 import org.camunda.bpm.engine.impl.interceptor.CommandContextInterceptor;
 import org.camunda.bpm.engine.impl.interceptor.CommandCounterInterceptor;
 import org.camunda.bpm.engine.impl.interceptor.CommandInterceptor;
 import org.camunda.bpm.engine.impl.interceptor.LogInterceptor;
 import org.camunda.bpm.engine.impl.interceptor.ProcessApplicationContextInterceptor;
-import org.camunda.bpm.engine.impl.variable.serializer.jpa.EntityManagerSession;
 import org.camunda.bpm.engine.repository.DeploymentBuilder;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ContextResource;
@@ -75,11 +73,6 @@ public class SpringTransactionsProcessEngineConfiguration extends ProcessEngineC
     }
 
     List<CommandInterceptor> defaultCommandInterceptorsTxRequired = new ArrayList<CommandInterceptor>();
-    // CRDB interceptor is added before the SpringTransactionInterceptor,
-    // so that a Spring TX may be rolled back before retrying.
-    if (DbSqlSessionFactory.CRDB.equals(databaseType)) {
-      defaultCommandInterceptorsTxRequired.add(getCrdbRetryInterceptor());
-    }
     if (!isDisableExceptionCode()) {
       defaultCommandInterceptorsTxRequired.add(getExceptionCodeInterceptor());
     }
@@ -94,11 +87,6 @@ public class SpringTransactionsProcessEngineConfiguration extends ProcessEngineC
 
   protected Collection< ? extends CommandInterceptor> getDefaultCommandInterceptorsTxRequiresNew() {
     List<CommandInterceptor> defaultCommandInterceptorsTxRequiresNew = new ArrayList<CommandInterceptor>();
-    // CRDB interceptor is added before the SpringTransactionInterceptor,
-    // so that a Spring TX may be rolled back before retrying.
-    if (DbSqlSessionFactory.CRDB.equals(databaseType)) {
-      defaultCommandInterceptorsTxRequiresNew.add(getCrdbRetryInterceptor());
-    }
     if (!isDisableExceptionCode()) {
       defaultCommandInterceptorsTxRequiresNew.add(getExceptionCodeInterceptor());
     }
@@ -115,15 +103,6 @@ public class SpringTransactionsProcessEngineConfiguration extends ProcessEngineC
   protected void initTransactionContextFactory() {
     if(transactionContextFactory == null && transactionManager != null) {
       transactionContextFactory = new SpringTransactionContextFactory(transactionManager);
-    }
-  }
-
-  @Override
-  protected void initJpa() {
-    super.initJpa();
-    if (jpaEntityManagerFactory != null) {
-      sessionFactories.put(EntityManagerSession.class,
-              new SpringEntityManagerSessionFactory(jpaEntityManagerFactory, jpaHandleTransaction, jpaCloseEntityManager));
     }
   }
 

@@ -46,6 +46,8 @@ public class DefaultDmnEngineConfiguration extends DmnEngineConfiguration {
   public static final String FEEL_EXPRESSION_LANGUAGE_ALTERNATIVE = "feel";
   public static final String FEEL_EXPRESSION_LANGUAGE_DMN12 = DmnModelConstants.FEEL12_NS;
   public static final String FEEL_EXPRESSION_LANGUAGE_DMN13 = DmnModelConstants.FEEL13_NS;
+  public static final String FEEL_EXPRESSION_LANGUAGE_DMN14 = DmnModelConstants.FEEL14_NS;
+  public static final String FEEL_EXPRESSION_LANGUAGE_DMN15 = DmnModelConstants.FEEL15_NS;
   public static final String JUEL_EXPRESSION_LANGUAGE = "juel";
 
   protected DmnEngineMetricCollector engineMetricCollector;
@@ -80,6 +82,8 @@ public class DefaultDmnEngineConfiguration extends DmnEngineConfiguration {
   protected String defaultLiteralExpressionLanguage = null;
 
   protected DmnTransformer transformer = new DefaultDmnTransformer();
+
+  protected boolean returnBlankTableOutputAsNull = false;
 
   @Override
   public DmnEngine buildEngine() {
@@ -600,6 +604,24 @@ public class DefaultDmnEngineConfiguration extends DmnEngineConfiguration {
    */
   public DefaultDmnEngineConfiguration enableFeelLegacyBehavior(boolean enableFeelLegacyBehavior) {
     setEnableFeelLegacyBehavior(enableFeelLegacyBehavior);
+    return this;
+  }
+
+  /**
+   * @return whether blank table outputs are swallowed or returned as {@code null}.
+   */
+  public boolean isReturnBlankTableOutputAsNull() {
+    return returnBlankTableOutputAsNull;
+  }
+
+  /**
+   * Controls whether blank table outputs are swallowed or returned as {@code null}.
+   *
+   * @param returnBlankTableOutputAsNull toggles whether blank table outputs are swallowed or returned as {@code null}.
+   * @return this
+   */
+  public DefaultDmnEngineConfiguration setReturnBlankTableOutputAsNull(boolean returnBlankTableOutputAsNull) {
+    this.returnBlankTableOutputAsNull = returnBlankTableOutputAsNull;
     return this;
   }
 

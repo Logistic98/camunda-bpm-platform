@@ -16,6 +16,8 @@
  */
 package org.camunda.bpm.client;
 
+import java.util.function.Consumer;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.camunda.bpm.client.backoff.BackoffStrategy;
 import org.camunda.bpm.client.backoff.ExponentialBackoffStrategy;
 import org.camunda.bpm.client.exception.ExternalTaskClientException;
@@ -30,6 +32,8 @@ public interface ExternalTaskClientBuilder {
 
   /**
    * Base url of the Camunda BPM Platform REST API. This information is mandatory.
+   * <p>
+   * If this method is used, it will create a permanent url resolver with the given baseUrl.
    *
    * @param baseUrl of the Camunda BPM Platform REST API
    * @return the builder
@@ -37,9 +41,39 @@ public interface ExternalTaskClientBuilder {
   ExternalTaskClientBuilder baseUrl(String baseUrl);
 
   /**
+   * Url resolver of the Camunda 7 REST API. This information is mandatory.
+   * <p>
+   * If the server is in a cluster or you are using spring cloud, you can create a class which implements UrlResolver..
+   * <p>
+   * this is a sample for spring cloud DiscoveryClient
+   * <pre>
+   * {@code
+   * public class CustomUrlResolver implements UrlResolver{
+   * protected String serviceId;
+   *
+   * protected DiscoveryClient discoveryClient;
+   *
+   *   protected String getRandomServiceInstance() {
+   *     List serviceInstances = discoveryClient.getInstances(serviceId);
+   *     Random random = new Random();
+   *
+   *     return serviceInstances.get(random.nextInt(serviceInstances.size())).getUri().toString();
+   *   }
+   *
+   *   public String getBaseUrl() {
+   *     return getRandomServiceInstance();
+   *   }
+   * }
+   * </pre>
+   * @param urlResolver of the Camunda 7 REST API
+   * @return the builder
+   */
+  ExternalTaskClientBuilder urlResolver(UrlResolver urlResolver);
+
+  /**
    * A custom worker id the Workflow Engine is aware of. This information is optional.
    * Note: make sure to choose a unique worker id
-   *
+   * <p>
    * If not given or null, a worker id is generated automatically which consists of the
    * hostname as well as a random and unique 128 bit string (UUID).
    *
@@ -76,6 +110,42 @@ public interface ExternalTaskClientBuilder {
   ExternalTaskClientBuilder usePriority(boolean usePriority);
 
   /**
+   * Specifies whether tasks should be fetched based on their create time.
+   * If useCreateTime is passed using <code>true</code>, the tasks are going to be fetched in Descending order,
+   * otherwise <code>false</code> will not consider create time.
+   *
+   * @param useCreateTime the flag to control whether create time should be considered
+   *                      as a desc sorting criterion (newer tasks will be returned first)
+   * @return the builder
+   */
+  ExternalTaskClientBuilder useCreateTime(boolean useCreateTime);
+
+  /**
+   * Fluent API method for configuring createTime as a sorting criterion for fetching of the tasks. Can be used in
+   * conjunction with asc or desc methods to configure the respective order for createTime.
+   * The method needs to be called first before specifying the order.
+   *
+   * @return the builder
+   */
+  ExternalTaskClientBuilder orderByCreateTime();
+
+  /**
+   * Fluent API method to configure Ascending order on the associated field. Used in conjunction with an orderBy method
+   * such as orderByCreateTime.
+   *
+   * @return the builder
+   */
+  ExternalTaskClientBuilder asc();
+
+  /**
+   * Fluent API method to configure Descending order on the associated field. Used in conjunction with an orderBy method
+   * such as orderByCreateTime.
+   *
+   * @return the builder
+   */
+  ExternalTaskClientBuilder desc();
+
+  /**
    * Specifies the serialization format that is used to serialize objects when no specific
    * format is requested. This option defaults to application/json.
    *
@@ -105,10 +175,10 @@ public interface ExternalTaskClientBuilder {
 
   /**
    * @param lockDuration <ul>
-   *                       <li> in milliseconds to lock the external tasks
-   *                       <li> must be greater than zero
-   *                       <li> the default lock duration is 20 seconds (20,000 milliseconds)
-   *                       <li> is overridden by the lock duration configured on a topic subscription
+   *                     <li> in milliseconds to lock the external tasks
+   *                     <li> must be greater than zero
+   *                     <li> the default lock duration is 20 seconds (20,000 milliseconds)
+   *                     <li> is overridden by the lock duration configured on a topic subscription
    *                     </ul>
    * @return the builder
    */
@@ -133,26 +203,35 @@ public interface ExternalTaskClientBuilder {
 
   /**
    * Disables the client-side backoff strategy. On invocation, the configuration option {@link #backoffStrategy} is ignored.
-   *
+   * <p>
    * NOTE: Please bear in mind that disabling the client-side backoff can lead to heavy load situations on engine side.
-   *       To avoid this, please specify an appropriate {@link #asyncResponseTimeout(long)}.
+   * To avoid this, please specify an appropriate {@link #asyncResponseTimeout(long)}.
    *
    * @return the builder
    */
   ExternalTaskClientBuilder disableBackoffStrategy();
 
   /**
+   * Exposes the internal Apache {@link HttpClientBuilder} for custom client configurations.
+   * <p>
+   * Interceptors added via {@link #addInterceptor(ClientRequestInterceptor)} are added as last in the {@link #build()} method.
+   *
+   * @param httpClientConsumer the parameter that accepts the {@link HttpClientBuilder}
+   * @return the builder
+   */
+  ExternalTaskClientBuilder customizeHttpClient(Consumer<HttpClientBuilder> httpClientConsumer);
+
+  /**
    * Bootstraps the Camunda client
    *
-   * @throws ExternalTaskClientException
-   * <ul>
-   *   <li> if base url is null or string is empty
-   *   <li> if hostname cannot be retrieved
-   *   <li> if maximum amount of tasks is not greater than zero
-   *   <li> if maximum asynchronous response timeout is not greater than zero
-   *   <li> if lock duration is not greater than zero
-   * </ul>
    * @return the builder
+   * @throws ExternalTaskClientException <ul>
+   *                                       <li> if base url is null or string is empty
+   *                                       <li> if hostname cannot be retrieved
+   *                                       <li> if maximum amount of tasks is not greater than zero
+   *                                       <li> if maximum asynchronous response timeout is not greater than zero
+   *                                       <li> if lock duration is not greater than zero
+   *                                     </ul>
    */
   ExternalTaskClient build();
 

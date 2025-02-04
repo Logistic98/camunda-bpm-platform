@@ -16,26 +16,27 @@
  */
 package org.camunda.bpm.container.impl.jboss.extension.handler;
 
-import org.camunda.bpm.container.impl.jboss.config.ManagedProcessEngineMetadata;
-import org.camunda.bpm.container.impl.jboss.extension.SubsystemAttributeDefinitons;
-import org.camunda.bpm.container.impl.jboss.extension.Element;
-import org.camunda.bpm.container.impl.jboss.service.MscManagedProcessEngineController;
-import org.camunda.bpm.container.impl.jboss.service.ServiceNames;
-import org.camunda.bpm.container.impl.metadata.spi.ProcessEnginePluginXml;
-import org.camunda.bpm.engine.ProcessEngine;
-import org.jboss.as.controller.*;
-import org.jboss.dmr.ModelNode;
-import org.jboss.dmr.Property;
-import org.jboss.msc.service.ServiceBuilder;
-import org.jboss.msc.service.ServiceController;
-import org.jboss.msc.service.ServiceName;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ADDRESS;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ADDRESS;
+import org.camunda.bpm.container.impl.jboss.config.ManagedProcessEngineMetadata;
+import org.camunda.bpm.container.impl.jboss.extension.Element;
+import org.camunda.bpm.container.impl.jboss.extension.SubsystemAttributeDefinitons;
+import org.camunda.bpm.container.impl.jboss.service.MscManagedProcessEngineController;
+import org.camunda.bpm.container.impl.jboss.service.ServiceNames;
+import org.camunda.bpm.container.impl.metadata.spi.ProcessEnginePluginXml;
+import org.jboss.as.controller.AbstractAddStepHandler;
+import org.jboss.as.controller.OperationContext;
+import org.jboss.as.controller.OperationFailedException;
+import org.jboss.as.controller.PathAddress;
+import org.jboss.dmr.ModelNode;
+import org.jboss.dmr.Property;
+import org.jboss.msc.service.ServiceBuilder;
+import org.jboss.msc.service.ServiceName;
 
 
 /**
@@ -47,7 +48,7 @@ public class ProcessEngineAdd extends AbstractAddStepHandler {
 
   public static final ProcessEngineAdd INSTANCE = new ProcessEngineAdd();
 
-  private ProcessEngineAdd() {
+  protected ProcessEngineAdd() {
     super(SubsystemAttributeDefinitons.PROCESS_ENGINE_ATTRIBUTES);
   }
 
@@ -58,33 +59,34 @@ public class ProcessEngineAdd extends AbstractAddStepHandler {
 
     ManagedProcessEngineMetadata processEngineConfiguration = transformConfiguration(context, engineName, model);
 
-    ServiceController<ProcessEngine> controller = installService(context, processEngineConfiguration);
+    installService(context, processEngineConfiguration);
   }
 
-  protected ServiceController<ProcessEngine> installService(OperationContext context, 
-      ManagedProcessEngineMetadata processEngineConfiguration) {
+  protected void installService(OperationContext context, ManagedProcessEngineMetadata processEngineConfiguration) {
 
     MscManagedProcessEngineController service = new MscManagedProcessEngineController(processEngineConfiguration);
-    ServiceName name = ServiceNames.forManagedProcessEngine(processEngineConfiguration.getEngineName());
+    ServiceName serviceName = ServiceNames.forManagedProcessEngine(processEngineConfiguration.getEngineName());
 
-    ServiceBuilder<ProcessEngine> serviceBuilder = context.getServiceTarget().addService(name, service);
+    ServiceBuilder<?> serviceBuilder = context.getServiceTarget().addService(serviceName);
 
-    MscManagedProcessEngineController.initializeServiceBuilder(processEngineConfiguration, service, serviceBuilder, processEngineConfiguration.getJobExecutorAcquisitionName());
+    service.initializeServiceBuilder(processEngineConfiguration, serviceBuilder, serviceName, processEngineConfiguration.getJobExecutorAcquisitionName());
 
-    return serviceBuilder.install();
+    serviceBuilder.setInstance(service);
+    serviceBuilder.install();
   }
 
   protected ManagedProcessEngineMetadata transformConfiguration(final OperationContext context, String engineName, final ModelNode model) throws OperationFailedException {
     return new ManagedProcessEngineMetadata(
-      SubsystemAttributeDefinitons.DEFAULT.resolveModelAttribute(context, model).asBoolean(),
-      engineName,
-      SubsystemAttributeDefinitons.DATASOURCE.resolveModelAttribute(context, model).asString(),
-      SubsystemAttributeDefinitons.HISTORY_LEVEL.resolveModelAttribute(context, model).asString(),
-      SubsystemAttributeDefinitons.CONFIGURATION.resolveModelAttribute(context, model).asString(),
-      getProperties(SubsystemAttributeDefinitons.PROPERTIES.resolveModelAttribute(context, model)),
-      getPlugins(SubsystemAttributeDefinitons.PLUGINS.resolveModelAttribute(context, model))
+        SubsystemAttributeDefinitons.DEFAULT.resolveModelAttribute(context, model).asBoolean(),
+        engineName,
+        SubsystemAttributeDefinitons.DATASOURCE.resolveModelAttribute(context, model).asString(),
+        SubsystemAttributeDefinitons.HISTORY_LEVEL.resolveModelAttribute(context, model).asString(),
+        SubsystemAttributeDefinitons.CONFIGURATION.resolveModelAttribute(context, model).asString(),
+        getProperties(SubsystemAttributeDefinitons.PROPERTIES.resolveModelAttribute(context, model)),
+        getPlugins(SubsystemAttributeDefinitons.PLUGINS.resolveModelAttribute(context, model))
     );
   }
+
 
   protected List<ProcessEnginePluginXml> getPlugins(ModelNode plugins) {
     List<ProcessEnginePluginXml> pluginConfigurations =  new ArrayList<>();

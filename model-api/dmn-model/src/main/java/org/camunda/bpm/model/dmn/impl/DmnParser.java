@@ -20,10 +20,14 @@ import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN11_ALTERNATIVE
 import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN11_NS;
 import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN12_NS;
 import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN13_NS;
+import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN14_NS;
+import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN15_NS;
 import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN_11_ALTERNATIVE_SCHEMA_LOCATION;
 import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN_11_SCHEMA_LOCATION;
 import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN_12_SCHEMA_LOCATION;
 import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN_13_SCHEMA_LOCATION;
+import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN_14_SCHEMA_LOCATION;
+import static org.camunda.bpm.model.dmn.impl.DmnModelConstants.DMN_15_SCHEMA_LOCATION;
 
 import java.io.InputStream;
 
@@ -47,6 +51,8 @@ public class DmnParser extends AbstractModelParser {
 
   public DmnParser() {
     this.schemaFactory = SchemaFactory.newInstance(W3C_XML_SCHEMA);
+    addSchema(DMN15_NS, createSchema(DMN_15_SCHEMA_LOCATION, DmnParser.class.getClassLoader()));
+    addSchema(DMN14_NS, createSchema(DMN_14_SCHEMA_LOCATION, DmnParser.class.getClassLoader()));
     addSchema(DMN13_NS, createSchema(DMN_13_SCHEMA_LOCATION, DmnParser.class.getClassLoader()));
     addSchema(DMN12_NS, createSchema(DMN_12_SCHEMA_LOCATION, DmnParser.class.getClassLoader()));
     addSchema(DMN11_NS, createSchema(DMN_11_SCHEMA_LOCATION, DmnParser.class.getClassLoader()));
@@ -57,6 +63,8 @@ public class DmnParser extends AbstractModelParser {
   protected void configureFactory(DocumentBuilderFactory dbf) {
     dbf.setAttribute(JAXP_SCHEMA_LANGUAGE, W3C_XML_SCHEMA);
     dbf.setAttribute(JAXP_SCHEMA_SOURCE, new String[] {
+      ReflectUtil.getResource(DMN_15_SCHEMA_LOCATION, DmnParser.class.getClassLoader()).toString(),
+      ReflectUtil.getResource(DMN_14_SCHEMA_LOCATION, DmnParser.class.getClassLoader()).toString(),
       ReflectUtil.getResource(DMN_13_SCHEMA_LOCATION, DmnParser.class.getClassLoader()).toString(),
       ReflectUtil.getResource(DMN_12_SCHEMA_LOCATION, DmnParser.class.getClassLoader()).toString(),
       ReflectUtil.getResource(DMN_11_SCHEMA_LOCATION, DmnParser.class.getClassLoader()).toString(),

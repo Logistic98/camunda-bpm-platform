@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.camunda.bpm.run</groupId>
     <artifactId>camunda-bpm-run-qa</artifactId>
-    <version>7.20.0-SNAPSHOT</version>
+    <version>7.23.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -15,6 +15,7 @@
   
   <properties>
     <run-home>${project.build.directory}/run/camunda-bpm-run-distro</run-home>
+    <example-plugin-home>${project.build.directory}/run/example-plugin</example-plugin-home>
   </properties>
 
   <dependencies>
@@ -110,6 +111,7 @@
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient</artifactId>
+      <version>${version.httpclient}</version>
       <scope>test</scope>
     </dependency>
 
@@ -149,6 +151,7 @@
               </dependenciesToScan>
               <systemPropertyVariables>
                 <camunda.run.home>${run-home}</camunda.run.home>
+                <example.plugin.home>${example-plugin-home}</example.plugin.home>
                 <selenium.screenshot.directory>${project.build.directory}/selenium-screenshots</selenium.screenshot.directory>
               </systemPropertyVariables>
             </configuration>
@@ -166,7 +169,7 @@
             <artifactId>maven-dependency-plugin</artifactId>
             <executions>
               <execution>
-                <id>default</id>
+                <id>copy-run-distro</id>
                 <goals>
                   <goal>unpack-dependencies</goal>
                 </goals>
@@ -177,6 +180,25 @@
                   <excludeTransitive>true</excludeTransitive>
                   <outputDirectory>${run-home}</outputDirectory>
                   <excludes>configuration/default.yml,configuration/production.yml</excludes>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-plugin</id>
+                <goals>
+                  <goal>copy</goal>
+                </goals>
+                <phase>generate-test-resources</phase>
+                <configuration>
+                  <artifact>org.camunda.bpm.run:camunda-bpm-run-example-plugin:${project.version}</artifact>
+                  <overWriteSnapshots>true</overWriteSnapshots>
+                  <stripVersion>true</stripVersion>
+                  <outputDirectory>${example-plugin-home}</outputDirectory>
                 </configuration>
               </execution>
             </executions>

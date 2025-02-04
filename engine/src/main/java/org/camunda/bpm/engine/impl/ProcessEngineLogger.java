@@ -17,7 +17,6 @@
 package org.camunda.bpm.engine.impl;
 
 import java.net.URL;
-
 import org.camunda.bpm.application.impl.ProcessApplicationLogger;
 import org.camunda.bpm.container.impl.ContainerIntegrationLogger;
 import org.camunda.bpm.engine.ProcessEngineConfiguration;
@@ -44,7 +43,6 @@ import org.camunda.bpm.engine.impl.persistence.entity.JobEntity;
 import org.camunda.bpm.engine.impl.plugin.AdministratorAuthorizationPluginLogger;
 import org.camunda.bpm.engine.impl.pvm.PvmLogger;
 import org.camunda.bpm.engine.impl.scripting.ScriptLogger;
-import org.camunda.bpm.engine.impl.telemetry.TelemetryLogger;
 import org.camunda.bpm.engine.impl.test.TestLogger;
 import org.camunda.bpm.engine.impl.util.EngineUtilLogger;
 import org.camunda.commons.logging.BaseLogger;
@@ -126,19 +124,17 @@ public class ProcessEngineLogger extends BaseLogger {
       MigrationLogger.class, PROJECT_CODE, "org.camunda.bpm.engine.migration", "23");
 
   public static final ExternalTaskLogger EXTERNAL_TASK_LOGGER = BaseLogger.createLogger(
-    ExternalTaskLogger.class, PROJECT_CODE, "org.camunda.bpm.engine.externaltask", "24");
+      ExternalTaskLogger.class, PROJECT_CODE, "org.camunda.bpm.engine.externaltask", "24");
 
   public static final SecurityLogger SECURITY_LOGGER = BaseLogger.createLogger(
-    SecurityLogger.class, PROJECT_CODE, "org.camunda.bpm.engine.security", "25");
+      SecurityLogger.class, PROJECT_CODE, "org.camunda.bpm.engine.security", "25");
 
   public static final IncidentLogger INCIDENT_LOGGER = BaseLogger.createLogger(
       IncidentLogger.class, PROJECT_CODE, "org.camunda.bpm.engine.incident", "26");
 
   public static final IndentityLogger INDENTITY_LOGGER = BaseLogger.createLogger(
       IndentityLogger.class, PROJECT_CODE, "org.camunda.bpm.engine.identity", "27");
-
-  public static final TelemetryLogger TELEMETRY_LOGGER = BaseLogger.createLogger(
-      TelemetryLogger.class, PROJECT_CODE, "org.camunda.bpm.engine.telemetry", "28");
+  // Use code 29 for the next logger. Skip 28 as it's previously used for telemetry feature that is removed from the code base now
 
   public static boolean shouldLogJobException(ProcessEngineConfiguration processEngineConfiguration, JobEntity currentJob) {
     boolean enableReducedJobExceptionLogging = processEngineConfiguration.isEnableReducedJobExceptionLogging();

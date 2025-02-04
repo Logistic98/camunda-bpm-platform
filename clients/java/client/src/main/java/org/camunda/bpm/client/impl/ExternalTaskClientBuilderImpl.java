@@ -16,6 +16,13 @@
  */
 package org.camunda.bpm.client.impl;
 
+import static org.camunda.bpm.client.task.OrderingConfig.Direction.ASC;
+import static org.camunda.bpm.client.task.OrderingConfig.Direction.DESC;
+import static org.camunda.bpm.client.task.OrderingConfig.SortingField.CREATE_TIME;
+
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
@@ -25,9 +32,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.UUID;
-
+import java.util.function.Consumer;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.camunda.bpm.client.ExternalTaskClient;
 import org.camunda.bpm.client.ExternalTaskClientBuilder;
+import org.camunda.bpm.client.UrlResolver;
 import org.camunda.bpm.client.backoff.BackoffStrategy;
 import org.camunda.bpm.client.backoff.ExponentialBackoffStrategy;
 import org.camunda.bpm.client.interceptor.ClientRequestInterceptor;
@@ -35,6 +45,7 @@ import org.camunda.bpm.client.interceptor.impl.RequestInterceptorHandler;
 import org.camunda.bpm.client.spi.DataFormat;
 import org.camunda.bpm.client.spi.DataFormatConfigurator;
 import org.camunda.bpm.client.spi.DataFormatProvider;
+import org.camunda.bpm.client.task.OrderingConfig;
 import org.camunda.bpm.client.topic.impl.TopicSubscriptionManager;
 import org.camunda.bpm.client.variable.impl.DefaultValueMappers;
 import org.camunda.bpm.client.variable.impl.TypedValues;
@@ -54,10 +65,6 @@ import org.camunda.bpm.client.variable.impl.mapper.StringValueMapper;
 import org.camunda.bpm.client.variable.impl.mapper.XmlValueMapper;
 import org.camunda.bpm.engine.variable.Variables;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-
 /**
  * @author Tassilo Weidner
  */
@@ -65,10 +72,10 @@ public class ExternalTaskClientBuilderImpl implements ExternalTaskClientBuilder 
 
   protected static final ExternalTaskClientLogger LOG = ExternalTaskClientLogger.CLIENT_LOGGER;
 
-  protected String baseUrl;
   protected String workerId;
   protected int maxTasks;
   protected boolean usePriority;
+  protected OrderingConfig orderingConfig = OrderingConfig.empty();
   protected Long asyncResponseTimeout;
   protected long lockDuration;
 
@@ -81,11 +88,13 @@ public class ExternalTaskClientBuilderImpl implements ExternalTaskClientBuilder 
   protected TypedValues typedValues;
   protected EngineClient engineClient;
   protected TopicSubscriptionManager topicSubscriptionManager;
+  protected HttpClientBuilder httpClientBuilder;
 
   protected List<ClientRequestInterceptor> interceptors;
   protected boolean isAutoFetchingEnabled;
   protected BackoffStrategy backoffStrategy;
   protected boolean isBackoffStrategyDisabled;
+  protected UrlResolver urlResolver;
 
   public ExternalTaskClientBuilderImpl() {
     // default values
@@ -97,10 +106,16 @@ public class ExternalTaskClientBuilderImpl implements ExternalTaskClientBuilder 
     this.isAutoFetchingEnabled = true;
     this.backoffStrategy = new ExponentialBackoffStrategy();
     this.isBackoffStrategyDisabled = false;
+    this.httpClientBuilder = HttpClients.custom().useSystemProperties();
   }
 
   public ExternalTaskClientBuilder baseUrl(String baseUrl) {
-    this.baseUrl = baseUrl;
+    this.urlResolver = new PermanentUrlResolver(baseUrl);
+    return this;
+  }
+
+  public ExternalTaskClientBuilder urlResolver(UrlResolver urlResolver) {
+    this.urlResolver = urlResolver;
     return this;
   }
 
@@ -121,6 +136,29 @@ public class ExternalTaskClientBuilderImpl implements ExternalTaskClientBuilder 
 
   public ExternalTaskClientBuilder usePriority(boolean usePriority) {
     this.usePriority = usePriority;
+    return this;
+  }
+
+  public ExternalTaskClientBuilder useCreateTime(boolean useCreateTime) {
+    if (useCreateTime) {
+      orderingConfig.configureField(CREATE_TIME);
+      orderingConfig.configureDirectionOnLastField(DESC);
+    }
+    return this;
+  }
+
+  public ExternalTaskClientBuilder orderByCreateTime() {
+    orderingConfig.configureField(CREATE_TIME);
+    return this;
+  }
+
+  public ExternalTaskClientBuilder asc() {
+    orderingConfig.configureDirectionOnLastField(ASC);
+    return this;
+  }
+
+  public ExternalTaskClientBuilder desc() {
+    orderingConfig.configureDirectionOnLastField(DESC);
     return this;
   }
 
@@ -159,6 +197,11 @@ public class ExternalTaskClientBuilderImpl implements ExternalTaskClientBuilder 
     return this;
   }
 
+  public ExternalTaskClientBuilder customizeHttpClient(Consumer<HttpClientBuilder> httpClientConsumer) {
+    httpClientConsumer.accept(httpClientBuilder);
+    return this;
+  }
+
   public ExternalTaskClient build() {
     if (maxTasks <= 0) {
       throw LOG.maxTasksNotGreaterThanZeroException(maxTasks);
@@ -172,11 +215,13 @@ public class ExternalTaskClientBuilderImpl implements ExternalTaskClientBuilder 
       throw LOG.lockDurationIsNotGreaterThanZeroException(lockDuration);
     }
 
-    if (baseUrl == null || baseUrl.isEmpty()) {
+    if (urlResolver == null || getBaseUrl() == null || getBaseUrl().isEmpty()) {
       throw LOG.baseUrlNullException();
     }
 
     checkInterceptors();
+
+    orderingConfig.validateOrderingProperties();
 
     initBaseUrl();
     initWorkerId();
@@ -189,7 +234,9 @@ public class ExternalTaskClientBuilderImpl implements ExternalTaskClientBuilder 
   }
 
   protected void initBaseUrl() {
-    baseUrl = sanitizeUrl(baseUrl);
+    if (this.urlResolver instanceof PermanentUrlResolver) {
+      ((PermanentUrlResolver) this.urlResolver).setBaseUrl(sanitizeUrl(this.urlResolver.getBaseUrl()));
+    }
   }
 
   protected String sanitizeUrl(String url) {
@@ -262,8 +309,11 @@ public class ExternalTaskClientBuilderImpl implements ExternalTaskClientBuilder 
 
   protected void initEngineClient() {
     RequestInterceptorHandler requestInterceptorHandler = new RequestInterceptorHandler(interceptors);
-    RequestExecutor requestExecutor = new RequestExecutor(requestInterceptorHandler, objectMapper);
-    engineClient = new EngineClient(workerId, maxTasks, asyncResponseTimeout, baseUrl, requestExecutor, usePriority);
+    httpClientBuilder.addRequestInterceptorLast(requestInterceptorHandler);
+    RequestExecutor requestExecutor = new RequestExecutor(httpClientBuilder.build(), objectMapper);
+
+    engineClient = new EngineClient(workerId, maxTasks, asyncResponseTimeout, urlResolver, requestExecutor, usePriority,
+        orderingConfig);
   }
 
   protected void initTopicSubscriptionManager() {
@@ -302,12 +352,11 @@ public class ExternalTaskClientBuilderImpl implements ExternalTaskClientBuilder 
 
     String dataFormatName = provider.getDataFormatName();
 
-    if(!dataFormats.containsKey(dataFormatName)) {
+    if (!dataFormats.containsKey(dataFormatName)) {
       DataFormat dataFormatInstance = provider.createInstance();
       dataFormats.put(dataFormatName, dataFormatInstance);
       LOG.logDataFormat(dataFormatInstance);
-    }
-    else {
+    } else {
       throw LOG.multipleProvidersForDataformat(dataFormatName);
     }
   }
@@ -347,7 +396,7 @@ public class ExternalTaskClientBuilderImpl implements ExternalTaskClientBuilder 
   }
 
   public String getBaseUrl() {
-    return baseUrl;
+    return urlResolver.getBaseUrl();
   }
 
   protected String getWorkerId() {

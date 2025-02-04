@@ -5,8 +5,8 @@ SET BASEDIR=%~dp0
 SET PARENTDIR=%BASEDIR%..\
 SET DEPLOYMENTDIR=%PARENTDIR%configuration/resources
 SET WEBAPPS_PATH=%BASEDIR%webapps
+SET OAUTH2_PATH=%BASEDIR%oauth2
 SET REST_PATH=%BASEDIR%rest
-SET SWAGGER_PATH=%BASEDIR%swaggerui
 SET EXAMPLE_PATH=%BASEDIR%example
 SET APPNAME=Camunda Run
 
@@ -34,9 +34,28 @@ IF "x%JAVA_HOME%" == "x" (
       GOTO :EOF
     )
     ECHO Setting JAVA property to "%JAVA_HOME%\bin\java"
-    SET JAVA="%JAVA_HOME%\bin\java"
+    SET "JAVA=%JAVA_HOME%\bin\java"
+    SET "RESTORE_PATH=%PATH%"
+    REM add temp the JAVA_HOME so this java is used in the java version check
+    SET "PATH=%JAVA_HOME%\bin;%PATH%"
   )
 )
+
+SET EXPECTED_JAVA_VERSION=17
+FOR /f "tokens=3" %%g IN ('java -version 2^>^&1 ^| findstr /i "version"') DO (
+  SET JAVA_VERSION=%%g
+)
+REM Remove the surrounding quotes
+SET JAVA_VERSION=%JAVA_VERSION:"=%
+ECHO Java version is %JAVA_VERSION%
+FOR /f "delims=. tokens=1" %%v in ("%JAVA_VERSION%") do (
+  IF %%v LSS %EXPECTED_JAVA_VERSION% (
+    ECHO You must use at least JDK 17 to start Camunda Platform Run.
+    GOTO :EOF
+  )
+)
+REM revert PATH variable to its initial value
+SET "PATH=%RESTORE_PATH%"
 
 IF NOT "x%JAVA_OPTS%" == "x" (
   ECHO JAVA_OPTS: %JAVA_OPTS%
@@ -45,7 +64,6 @@ IF NOT "x%JAVA_OPTS%" == "x" (
 REM set environment parameters
 SET optionalComponentChosen=false
 SET restChosen=false
-SET swaggeruiChosen=false
 SET productionChosen=false
 SET detachProcess=false
 SET classPath=%PARENTDIR%configuration\userlib,%PARENTDIR%configuration\keystore
@@ -62,18 +80,17 @@ IF [%~1]==[--webapps] (
   ECHO WebApps enabled
 )
 
+IF [%~1]==[--oauth2] (
+  SET optionalComponentChosen=true
+  SET classPath=%OAUTH2_PATH%,%classPath%
+  ECHO Spring Security OAuth2 enabled
+)
+
 IF [%~1]==[--rest] (
   SET optionalComponentChosen=true
   SET restChosen=true
   SET classPath=%REST_PATH%,%classPath%
   ECHO REST API enabled
-)
-
-IF [%~1]==[--swaggerui] (
-  SET optionalComponentChosen=true
-  SET swaggeruiChosen=true
-  SET classPath=%SWAGGER_PATH%,%classPath%
-  ECHO Swagger UI enabled
 )
 
 IF [%~1]==[--example] (
@@ -100,38 +117,29 @@ GOTO Loop
 :Continue
 
 REM If no optional component is chosen, enable REST and Webapps.
-REM If production mode is not chosen, also enable Swagger UI and the example application.
+REM If production mode is not chosen, also enable the example application.
 setlocal enabledelayedexpansion
 IF [%optionalComponentChosen%]==[false] (
   SET restChosen=true
   ECHO REST API enabled
   ECHO WebApps enabled
   IF [%productionChosen%]==[false] (
-    SET swaggeruiChosen=true
-    ECHO Swagger UI enabled
     ECHO Invoice Example included - needs to be enabled in application configuration as well
-    SET classPath=%SWAGGER_PATH%,%EXAMPLE_PATH%,%classPath%
+    SET classPath=%EXAMPLE_PATH%,%classPath%
   )
   SET classPath=%WEBAPPS_PATH%,%REST_PATH%,!classPath!
 )
 setlocal disabledelayedexpansion
-
-REM if Swagger UI is enabled but REST is not, warn the user
-IF [%swaggeruiChosen%]==[true] (
-  IF [%restChosen%]==[false] (
-    ECHO You did not enable the REST API. Swagger UI will not be able to send any requests to this Camunda Platform Run instance.
-  )
-)
 
 ECHO classpath: %classPath%
 
 REM start the application
 IF [%detachProcess%]==[true] (
   REM in the background
-  start "%APPNAME%" %JAVA% -Dloader.path="%classPath%" -Dcamunda.deploymentDir="%DEPLOYMENTDIR%" %JAVA_OPTS% -jar "%BASEDIR%camunda-bpm-run-core.jar" --spring.config.location=file:"%configuration%"
+  start "%APPNAME%" "%JAVA%" -Dloader.path="%classPath%" -Dcamunda.deploymentDir="%DEPLOYMENTDIR%" %JAVA_OPTS% -jar "%BASEDIR%camunda-bpm-run-core.jar" --spring.config.location=file:"%configuration%"
 
 ) ELSE (
-  call %JAVA% -Dloader.path="%classPath%" -Dcamunda.deploymentDir="%DEPLOYMENTDIR%" %JAVA_OPTS% -jar "%BASEDIR%camunda-bpm-run-core.jar" --spring.config.location=file:"%configuration%"
+  call "%JAVA%" -Dloader.path="%classPath%" -Dcamunda.deploymentDir="%DEPLOYMENTDIR%" %JAVA_OPTS% -jar "%BASEDIR%camunda-bpm-run-core.jar" --spring.config.location=file:"%configuration%"
 )
 
 GOTO End
@@ -151,8 +159,8 @@ ECHO Usage: run.bat [start^|stop] (options...)
 :ArgsHelp
 ECHO Options:
 ECHO   --webapps    - Enables the Camunda Platform Webapps
+ECHO   --oauth2     - Enables the Camunda Platform Spring Security OAuth2 integration
 ECHO   --rest       - Enables the REST API
-ECHO   --swaggerui  - Enables the Swagger UI
 ECHO   --example    - Enables the example application
 ECHO   --production - Applies the production.yaml configuration file
 ECHO   --detached   - Starts Camunda Run as a detached process

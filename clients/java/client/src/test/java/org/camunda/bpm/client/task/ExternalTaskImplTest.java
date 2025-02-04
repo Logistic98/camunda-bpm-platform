@@ -50,6 +50,7 @@ public class ExternalTaskImplTest {
         + "executionId=null, "
         + "id=null, "
         + "lockExpirationTime=null, "
+        + "createTime=null, "
         + "priority=0, "
         + "processDefinitionId=null, "
         + "processDefinitionKey=null, "
@@ -77,6 +78,7 @@ public class ExternalTaskImplTest {
     task.setExecutionId("ei");
     task.setId("i");
     task.setLockExpirationTime(date);
+    task.setCreateTime(date);
     task.setPriority(3L);
     task.setProcessDefinitionId("pdi");
     task.setProcessDefinitionKey("pdk");
@@ -95,6 +97,7 @@ public class ExternalTaskImplTest {
         + "executionId=ei, "
         + "id=i, "
         + "lockExpirationTime=" + DateFormat.getDateTimeInstance().format(date) + ", "
+        + "createTime=" + DateFormat.getDateTimeInstance().format(date) + ", "
         + "priority=3, "
         + "processDefinitionId=pdi, "
         + "processDefinitionKey=pdk, "
@@ -124,6 +127,7 @@ public class ExternalTaskImplTest {
     task.setExecutionId("ei");
     task.setId("i");
     task.setLockExpirationTime(date);
+    task.setCreateTime(date);
     task.setPriority(3L);
     task.setProcessDefinitionId("pdi");
     task.setProcessDefinitionKey("pdk");
@@ -135,8 +139,8 @@ public class ExternalTaskImplTest {
     task.setWorkerId("wi");
 
     Map<String, VariableValue> receivedVariables = new LinkedHashMap<>();
-    receivedVariables.put("rv1", generateVariableValue("pii", "variable1", ValueType.STRING.getName(), "value1", 42, "vi2"));
-    receivedVariables.put("rv2", generateVariableValue("pii", "variable2", ValueType.INTEGER.getName(), 99, 42, "vi2", 87L));
+    receivedVariables.put("rv1", generateVariableValue(task.getExecutionId(), "variable1", ValueType.STRING.getName(), "value1", 42, "vi2"));
+    receivedVariables.put("rv2", generateVariableValue(task.getExecutionId(), "variable2", ValueType.INTEGER.getName(), 99, 42, "vi2", 87L));
     task.setReceivedVariableMap(receivedVariables);
 
     Map<String, TypedValueField> variables = new LinkedHashMap<>();
@@ -152,15 +156,16 @@ public class ExternalTaskImplTest {
         + "executionId=ei, "
         + "id=i, "
         + "lockExpirationTime=" + DateFormat.getDateTimeInstance().format(date) + ", "
+        + "createTime=" + DateFormat.getDateTimeInstance().format(date) + ", "
         + "priority=3, "
         + "processDefinitionId=pdi, "
         + "processDefinitionKey=pdk, "
         + "processDefinitionVersionTag=versionTag, "
         + "processInstanceId=pii, "
         + "receivedVariableMap={"
-          + "rv1=VariableValue [cachedValue=null, processInstanceId=pii, variableName=variable1, typedValueField="
+          + "rv1=VariableValue [cachedValue=null, executionId=ei, variableName=variable1, typedValueField="
             + "TypedValueField [type=string, value=value1, valueInfo={vi1=42, vi2=vi2}]], "
-          + "rv2=VariableValue [cachedValue=null, processInstanceId=pii, variableName=variable2, typedValueField="
+          + "rv2=VariableValue [cachedValue=null, executionId=ei, variableName=variable2, typedValueField="
             + "TypedValueField [type=integer, value=99, valueInfo={vi1=42, vi2=vi2, vi3=87}]]"
         + "}, "
         + "retries=34, "
@@ -179,10 +184,10 @@ public class ExternalTaskImplTest {
   private static final ValueMappers DEFAULT_MAPPERS = new DefaultValueMappers(Variables.SerializationDataFormats.JSON.getName());
   
   @SuppressWarnings("rawtypes")
-  private static VariableValue generateVariableValue(String processInstanceId, String variableName, 
+  private static VariableValue generateVariableValue(String executionId, String variableName,
       final String typeI, final Object valueI, Object... valueInfos) {
     TypedValueField typedValueField = generateTypedValueField(typeI, valueI, valueInfos);
-    return new VariableValue(processInstanceId, variableName, typedValueField, DEFAULT_MAPPERS);
+    return new VariableValue(executionId, variableName, typedValueField, DEFAULT_MAPPERS);
   }
 
   private static TypedValueField generateTypedValueField(final String typeI, final Object valueI, Object... valueInfos) {

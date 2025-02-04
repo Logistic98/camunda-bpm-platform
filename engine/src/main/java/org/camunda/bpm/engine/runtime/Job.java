@@ -41,6 +41,11 @@ public interface Job {
   Date getDuedate();
 
   /**
+   * Returns the id of the root process instance which execution created the job.
+   */
+  String getRootProcessInstanceId();
+
+  /**
    * Returns the id of the process instance which execution created the job.
    */
   String getProcessInstanceId();
@@ -114,4 +119,15 @@ public interface Job {
   /** The date/time when this job has been created */
   Date getCreateTime();
 
+  /**
+   * The ID of the batch associated with this job. <code>null</code> if no batch is associated with this job.
+   * The following jobs are associated with batches:
+   * <ul>
+   *   <li>Seed Jobs</li>
+   *   <li>Monitor Jobs</li>
+   *   <li>Batch Execution Jobs</li>
+   * </ul>
+   * @return The ID of the batch associated to the Job.
+   */
+  String getBatchId();
 }

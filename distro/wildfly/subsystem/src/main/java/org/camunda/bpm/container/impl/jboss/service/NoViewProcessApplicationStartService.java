@@ -16,6 +16,8 @@
  */
 package org.camunda.bpm.container.impl.jboss.service;
 
+import java.util.function.Consumer;
+
 import org.camunda.bpm.application.ProcessApplicationInterface;
 import org.camunda.bpm.application.ProcessApplicationReference;
 import org.camunda.bpm.application.ProcessApplicationUnavailableException;
@@ -28,33 +30,44 @@ import org.jboss.msc.service.StopContext;
 /**
  * <p>Start Service for process applications that do not expose an EE Component View
  * (like {@link ServletProcessApplication}</p>
- * 
+ *
  * @author Daniel Meyer
  *
  */
 public class NoViewProcessApplicationStartService implements Service<ProcessApplicationInterface> {
-  
+
   protected ProcessApplicationReference reference;
 
-  public NoViewProcessApplicationStartService(ProcessApplicationReference reference) {
+  protected final Consumer<ProcessApplicationInterface> provider;
+
+  public NoViewProcessApplicationStartService(ProcessApplicationReference reference, Consumer<ProcessApplicationInterface> provider) {
     this.reference = reference;
+    this.provider = provider;
   }
 
+  @Override
   public ProcessApplicationInterface getValue() throws IllegalStateException, IllegalArgumentException {
     try {
       return reference.getProcessApplication();
-      
+
     } catch (ProcessApplicationUnavailableException e) {
-      throw new IllegalStateException("Process application '"+reference.getName()+"' is not unavailable.", e);
+      throw new IllegalStateException("Process application '" + reference.getName() + "' is not available.", e);
     }
   }
 
+  @Override
   public void start(StartContext context) throws StartException {
-
+    try {
+      provider.accept(reference.getProcessApplication());
+    } catch (ProcessApplicationUnavailableException e) {
+      throw new IllegalStateException("Process application '" + reference.getName() + "' is not available during "
+          + NoViewProcessApplicationStartService.class + " start.", e);
+    }
   }
 
+  @Override
   public void stop(StopContext context) {
-
+    provider.accept(null);
   }
 
 }

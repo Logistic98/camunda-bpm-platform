@@ -235,6 +235,16 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
   protected String superCaseExecutionId;
 
   /**
+   * Completed HPI that is being restarted through this ExecutionEntity
+   */
+  protected String restartedProcessInstanceId;
+
+  /**
+   * The name of the process definition key
+   */
+  protected String processDefinitionKey;
+
+  /**
    * Contains observers which are observe the execution.
    * @since 7.6
    */
@@ -263,6 +273,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
 
     // initialize the new execution
     createdExecution.setProcessDefinition(getProcessDefinition());
+    createdExecution.setProcessDefinitionKey(getProcessDefinitionKey());
     createdExecution.setProcessInstance(getProcessInstance());
     createdExecution.setActivity(getActivity());
     createdExecution.setSuspensionState(getSuspensionState());
@@ -520,9 +531,10 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     removeEventSubscriptionsExceptCompensation();
   }
 
+  @Override
   public void removeAllTasks() {
     // delete all the tasks
-    removeTasks(null);
+    removeTasks();
 
     // delete external tasks
     removeExternalTasks();
@@ -548,6 +560,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     removeIncidents();
   }
 
+  @Override
   public void removeVariablesLocalInternal() {
     for (VariableInstanceEntity variableInstance : variableStore.getVariables()) {
       invokeVariableLifecycleListenersDelete(
@@ -569,7 +582,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
       removeEventSubscriptionsExceptCompensation();
     }
 
-    removeTasks(reason);
+    removeTasks(reason, skipCustomListeners);
 
     super.interrupt(reason, skipCustomListeners, skipIoMappings, externallyTerminated);
   }
@@ -748,6 +761,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     this.processDefinitionId = processDefinitionId;
   }
 
+  @Override
   public String getProcessDefinitionId() {
     return processDefinitionId;
   }
@@ -769,9 +783,13 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     this.processDefinition = processDefinition;
     if (processDefinition != null) {
       this.processDefinitionId = processDefinition.getId();
+      if (processDefinition instanceof ProcessDefinitionEntity) {
+        this.processDefinitionKey = ((ProcessDefinitionEntity) processDefinition).getKey();
+      }
     }
     else {
       this.processDefinitionId = null;
+      this.processDefinitionKey = null;
     }
 
   }
@@ -814,6 +832,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     return parentId == null;
   }
 
+  @Override
   public boolean isProcessInstanceStarting() {
     // the process instance can only be starting if it is currently in main-memory already
     // we never have to access the database
@@ -970,6 +989,14 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     this.superCaseExecutionId = superCaseExecutionId;
   }
 
+  public String getRestartedProcessInstanceId(){
+    return restartedProcessInstanceId;
+  }
+
+  public void setRestartedProcessInstanceId(String restartedProcessInstanceId){
+    this.restartedProcessInstanceId = restartedProcessInstanceId;
+  }
+
   @Override
   public CaseExecutionEntity getSuperCaseExecution() {
     ensureSuperCaseExecutionInitialized();
@@ -1081,7 +1108,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     }
   }
 
-  protected void removeTasks(String reason) {
+  protected void removeTasks(String reason, boolean skipCustomListeners) {
     if (reason == null) {
       reason = TaskEntity.DELETE_REASON_DELETED;
     }
@@ -1098,6 +1125,10 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
         task.delete(reason, false, skipCustomListeners);
       }
     }
+  }
+
+  protected void removeTasks() {
+    removeTasks(null, skipCustomListeners);
   }
 
   protected void removeExternalTasks() {
@@ -1248,6 +1279,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     return Context.getCommandContext().getVariableInstanceManager().findVariableInstancesByExecutionId(id);
   }
 
+  @Override
   public Collection<VariableInstanceEntity> provideVariables(Collection<String> variableNames) {
     return Context.getCommandContext().getVariableInstanceManager().findVariableInstancesByExecutionIdAndVariableNames(id, variableNames);
   }
@@ -1413,6 +1445,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
 
   // persistent state /////////////////////////////////////////////////////////
 
+  @Override
   public Object getPersistentState() {
     Map<String, Object> persistentState = new HashMap<>();
     persistentState.put("processDefinitionId", this.processDefinitionId);
@@ -1430,6 +1463,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     persistentState.put("suspensionState", this.suspensionState);
     persistentState.put("cachedEntityState", getCachedEntityState());
     persistentState.put("sequenceCounter", getSequenceCounter());
+    persistentState.put("processDefinitionKey", this.processDefinitionKey);
     return persistentState;
   }
 
@@ -1437,10 +1471,12 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     Context.getCommandContext().getExecutionManager().insertExecution(this);
   }
 
+  @Override
   public int getRevisionNext() {
     return revision + 1;
   }
 
+  @Override
   public void forceUpdate() {
     Context.getCommandContext().getDbEntityManager().forceUpdate(this);
   }
@@ -1774,6 +1810,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     return cachedEntityState;
   }
 
+  @Override
   public String getRootProcessInstanceId() {
     if (isProcessInstanceExecution()) {
       return rootProcessInstanceId;
@@ -1791,6 +1828,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     this.rootProcessInstanceId = rootProcessInstanceId;
   }
 
+  @Override
   public String getProcessInstanceId() {
     return processInstanceId;
   }
@@ -1812,10 +1850,12 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     this.parentId = parentId;
   }
 
+  @Override
   public int getRevision() {
     return revision;
   }
 
+  @Override
   public void setRevision(int revision) {
     this.revision = revision;
   }
@@ -1870,6 +1910,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     this.suspensionState = suspensionState;
   }
 
+  @Override
   public boolean isSuspended() {
     return suspensionState == SuspensionState.SUSPENDED.getStateCode();
   }
@@ -1884,6 +1925,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     return activityName;
   }
 
+  @Override
   public FlowElement getBpmnModelElementInstance() {
     BpmnModelInstance bpmnModelInstance = getBpmnModelInstance();
     if (bpmnModelInstance != null) {
@@ -1909,6 +1951,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     }
   }
 
+  @Override
   public BpmnModelInstance getBpmnModelInstance() {
     if (processDefinitionId != null) {
       return Context.getProcessEngineConfiguration().getDeploymentCache().findBpmnModelInstanceForProcessDefinition(processDefinitionId);
@@ -1919,6 +1962,7 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
     }
   }
 
+  @Override
   public ProcessEngineServices getProcessEngineServices() {
     return Context.getProcessEngineConfiguration().getProcessEngine();
   }
@@ -1930,5 +1974,14 @@ public class ExecutionEntity extends PvmExecutionImpl implements Execution, Proc
 
   public String getProcessDefinitionTenantId() {
     return getProcessDefinition().getTenantId();
+  }
+
+  public void setProcessDefinitionKey(String processDefinitionKey) {
+    this.processDefinitionKey = processDefinitionKey;
+  }
+
+  @Override
+  public String getProcessDefinitionKey() {
+    return processDefinitionKey;
   }
 }

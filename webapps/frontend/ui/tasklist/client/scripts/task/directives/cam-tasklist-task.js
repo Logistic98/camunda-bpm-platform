@@ -16,11 +16,10 @@
  */
 
 'use strict';
-var fs = require('fs');
 
-var template = fs.readFileSync(__dirname + '/cam-tasklist-task.html', 'utf8');
+var template = require('./cam-tasklist-task.html?raw');
 
-var angular = require('../../../../../../camunda-commons-ui/vendor/angular');
+var angular = require('camunda-commons-ui/vendor/angular');
 
 module.exports = [
   function() {
@@ -281,7 +280,7 @@ module.exports = [
             // check if the current tab is an external plugin and select a deep copy to re-render the plugin
             const taskDetailsTab = $scope.selectedTaskDetailTab;
 
-            if (oldTask?.id !== task.id && taskDetailsTab.pluginPoint) {
+            if (oldTask?.id !== task?.id && taskDetailsTab.pluginPoint) {
               $scope.selectTaskDetailTab(angular.copy(taskDetailsTab));
             }
           });

@@ -9,7 +9,7 @@
   <parent>
     <groupId>org.camunda.bpm.qa</groupId>
     <artifactId>camunda-qa</artifactId>
-    <version>7.20.0-SNAPSHOT</version>
+    <version>7.23.0-SNAPSHOT</version>
   </parent>
 
   <properties>
@@ -19,14 +19,14 @@
     <!-- Fixed for WildFly 26 -->
     <cargo.wildfly26.container.id>wildfly26x</cargo.wildfly26.container.id>
     <!-- Needs to be adjusted with every WildFly update -->
-    <cargo.wildfly.container.id>wildfly27x</cargo.wildfly.container.id>
+    <cargo.wildfly.container.id>wildfly35x</cargo.wildfly.container.id>
 
     <redirect.test.output>true</redirect.test.output>
 
     <http.ctx-path.webapp>camunda/</http.ctx-path.webapp>
     <http.ctx-path.rest>engine-rest/</http.ctx-path.rest>
 
-    <version.chromedriver>78.0.3904.70</version.chromedriver>
+    <version.chromedriver>112.0.5615.49</version.chromedriver>
 
     <!-- default os -->
     <os.type>linux64</os.type>
@@ -208,7 +208,6 @@
 
       <modules>
         <module>shared-engine</module>
-        <module>standalone-engine</module>
       </modules>
     </profile>
 
@@ -216,13 +215,6 @@
       <id>webapps-integration</id>
       <modules>
         <module>shared-engine</module>
-      </modules>
-    </profile>
-
-    <profile>
-      <id>webapps-integration-sa</id>
-      <modules>
-        <module>standalone-engine</module>
       </modules>
     </profile>
 

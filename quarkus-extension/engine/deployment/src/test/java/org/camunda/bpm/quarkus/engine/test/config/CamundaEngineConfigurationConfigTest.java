@@ -18,7 +18,7 @@ package org.camunda.bpm.quarkus.engine.test.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 import io.quarkus.test.QuarkusUnitTest;
 import org.camunda.bpm.engine.ProcessEngine;
@@ -49,10 +49,9 @@ public class CamundaEngineConfigurationConfigTest {
     // given a custom application.properties file
 
     // then
-    assertThat(config.genericConfig.get("cmmn-enabled")).isEqualTo("false");
-    assertThat(config.genericConfig.get("dmn-enabled")).isEqualTo("false");
-    assertThat(config.genericConfig.get("history")).isEqualTo("none");
-    assertThat(config.genericConfig.get("initialize-telemetry")).isEqualTo("false");
+    assertThat(config.genericConfig().get("cmmn-enabled")).isEqualTo("false");
+    assertThat(config.genericConfig().get("dmn-enabled")).isEqualTo("false");
+    assertThat(config.genericConfig().get("history")).isEqualTo("none");
   }
 
   @Test
@@ -66,7 +65,6 @@ public class CamundaEngineConfigurationConfigTest {
     assertThat(configuration.isCmmnEnabled()).isEqualTo(false);
     assertThat(configuration.isDmnEnabled()).isEqualTo(false);
     assertThat(configuration.getHistory()).isEqualTo("none");
-    assertThat(configuration.isInitializeTelemetry()).isEqualTo(false);
   }
 
 }

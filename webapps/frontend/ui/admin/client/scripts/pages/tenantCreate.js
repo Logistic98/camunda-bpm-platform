@@ -17,9 +17,7 @@
 
 'use strict';
 
-var fs = require('fs');
-
-var template = fs.readFileSync(__dirname + '/tenantCreate.html', 'utf8');
+var template = require('./tenantCreate.html?raw');
 
 var Controller = [
   '$scope',
@@ -68,9 +66,16 @@ var Controller = [
           });
           $location.path('/tenants');
         } else {
+          const {
+            response: {
+              body: {message}
+            }
+          } = err;
           Notifications.addError({
             status: $translate.instant('NOTIFICATIONS_STATUS_FAILED'),
-            message: $translate.instant('TENANTS_CREATE_TENANT_FAILED')
+            message: $translate.instant('TENANTS_CREATE_TENANT_FAILED', {
+              message
+            })
           });
         }
       });

@@ -16,22 +16,17 @@
  */
 package org.camunda.bpm.engine.test.api.history.removaltime.batch.helper;
 
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
+import java.util.GregorianCalendar;
 import java.util.Map;
-
 import org.camunda.bpm.dmn.engine.impl.DefaultDmnEngineConfiguration;
 import org.camunda.bpm.engine.ProcessEngineConfiguration;
-import org.camunda.bpm.engine.batch.Batch;
-import org.camunda.bpm.engine.batch.history.HistoricBatch;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.camunda.bpm.engine.impl.history.DefaultHistoryRemovalTimeProvider;
 import org.camunda.bpm.engine.impl.interceptor.CommandExecutor;
 import org.camunda.bpm.engine.impl.persistence.entity.ByteArrayEntity;
 import org.camunda.bpm.engine.impl.util.ClockUtil;
-import org.camunda.bpm.engine.runtime.Job;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.camunda.bpm.engine.test.api.resources.GetByteArrayCommand;
 import org.camunda.bpm.engine.test.bpmn.async.FailingExecutionListener;
@@ -43,7 +38,6 @@ import org.camunda.bpm.model.bpmn.BpmnModelInstance;
 import org.camunda.bpm.model.bpmn.builder.CallActivityBuilder;
 import org.camunda.bpm.model.bpmn.builder.ProcessBuilder;
 import org.camunda.bpm.model.bpmn.builder.StartEventBuilder;
-import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
 /**
@@ -51,13 +45,14 @@ import org.junit.runner.Description;
  */
 public class BatchSetRemovalTimeRule extends BatchRule {
 
-  public final Date CURRENT_DATE = new Date(1363608000000L);
+  public final Date CURRENT_DATE = new GregorianCalendar(2013, Calendar.MARCH, 18, 13, 0, 0).getTime();
   public final Date REMOVAL_TIME = new Date(1363609000000L);
 
   public BatchSetRemovalTimeRule(ProcessEngineRule engineRule, ProcessEngineTestRule engineTestRule) {
     super(engineRule, engineTestRule);
   }
 
+  @Override
   protected void starting(Description description) {
     getProcessEngineConfiguration()
       .setHistoryRemovalTimeProvider(new DefaultHistoryRemovalTimeProvider())
@@ -76,6 +71,7 @@ public class BatchSetRemovalTimeRule extends BatchRule {
     super.starting(description);
   }
 
+  @Override
   protected void finished(Description description) {
     super.finished(description);
 
@@ -106,6 +102,7 @@ public class BatchSetRemovalTimeRule extends BatchRule {
     getProcessEngineConfiguration().setAuthorizationEnabled(false);
   }
 
+  @Override
   public void clearDatabase() {
     super.clearDatabase();
     clearAuthorization();
@@ -176,7 +173,9 @@ public class BatchSetRemovalTimeRule extends BatchRule {
     protected static final String PROCESS_KEY = "process";
     protected static final String ROOT_PROCESS_KEY = "rootProcess";
 
-    ProcessBuilder builder = Bpmn.createExecutableProcess(PROCESS_KEY);
+    ProcessBuilder builder = Bpmn.createExecutableProcess(PROCESS_KEY)
+        .camundaHistoryTimeToLiveString(null);
+
     StartEventBuilder startEventBuilder = builder.startEvent();
     ProcessBuilder rootProcessBuilder = null;
     Integer ttl;
@@ -202,7 +201,8 @@ public class BatchSetRemovalTimeRule extends BatchRule {
     }
 
     public TestProcessBuilder call() {
-      rootProcessBuilder = Bpmn.createExecutableProcess(ROOT_PROCESS_KEY);
+      rootProcessBuilder = Bpmn.createExecutableProcess(ROOT_PROCESS_KEY)
+          .camundaHistoryTimeToLiveString(null);
 
       callActivityBuilder = rootProcessBuilder
         .startEvent()

@@ -17,6 +17,7 @@
 package org.camunda.bpm.engine.test.api.authorization;
 
 import static org.camunda.bpm.engine.authorization.Authorization.ANY;
+import static org.camunda.bpm.engine.authorization.Permissions.ALL;
 import static org.camunda.bpm.engine.authorization.Permissions.CREATE;
 import static org.camunda.bpm.engine.authorization.Permissions.CREATE_INSTANCE;
 import static org.camunda.bpm.engine.authorization.Permissions.DELETE;
@@ -41,14 +42,12 @@ import static org.junit.Assert.fail;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-
 import org.camunda.bpm.engine.AuthorizationException;
 import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.authorization.Authorization;
 import org.camunda.bpm.engine.authorization.Permissions;
 import org.camunda.bpm.engine.authorization.Resources;
 import org.camunda.bpm.engine.history.HistoricVariableInstance;
-import org.camunda.bpm.engine.impl.AbstractQuery;
 import org.camunda.bpm.engine.impl.TaskServiceImpl;
 import org.camunda.bpm.engine.impl.cfg.auth.DefaultAuthorizationProvider;
 import org.camunda.bpm.engine.impl.history.HistoryLevel;
@@ -56,7 +55,6 @@ import org.camunda.bpm.engine.impl.interceptor.Command;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
 import org.camunda.bpm.engine.impl.persistence.entity.HistoricVariableInstanceEntity;
 import org.camunda.bpm.engine.impl.persistence.entity.TaskEntity;
-import org.camunda.bpm.engine.runtime.VariableInstanceQuery;
 import org.camunda.bpm.engine.task.IdentityLink;
 import org.camunda.bpm.engine.task.IdentityLinkType;
 import org.camunda.bpm.engine.task.Task;
@@ -81,6 +79,7 @@ public class TaskAuthorizationTest extends AuthorizationTest {
   protected static final String CANDIDATE_GROUPS_PROCESS_KEY = "candidateGroupsProcess";
   protected static final String INVALID_PERMISSION = "invalidPermission";
 
+  @Override
   @Before
   public void setUp() throws Exception {
     testRule.deploy(
@@ -92,11 +91,13 @@ public class TaskAuthorizationTest extends AuthorizationTest {
     super.setUp();
   }
 
+  @Override
   @After
   public void tearDown() {
     super.tearDown();
 
     processEngineConfiguration.getCommandExecutorTxRequired().execute(new Command<Void>() {
+      @Override
       public Void execute(CommandContext commandContext) {
 
         List<HistoricVariableInstance> variables = historyService.createHistoricVariableInstanceQuery().includeDeleted().list();
@@ -190,6 +191,37 @@ public class TaskAuthorizationTest extends AuthorizationTest {
 
     // then
     verifyQueryResults(query, 1);
+  }
+
+  @Test
+  public void shouldNotFindTaskWithRevokedReadPermissionOnTask() {
+    // given
+    startProcessInstanceByKey(PROCESS_KEY);
+    String taskId = selectSingleTask().getId();
+    createGrantAuthorization(PROCESS_DEFINITION, ANY, ANY, ALL);
+    createGrantAuthorization(TASK, ANY, ANY, ALL);
+    createRevokeAuthorization(TASK, taskId, userId, READ);
+
+    // when
+    TaskQuery query = taskService.createTaskQuery();
+
+    // then
+    verifyQueryResults(query, 0);
+  }
+
+  @Test
+  public void shouldNotFindTaskWithRevokedReadTaskPermissionOnDefinition() {
+    // given
+    startProcessInstanceByKey(PROCESS_KEY);
+    createGrantAuthorization(PROCESS_DEFINITION, ANY, ANY, ALL);
+    createGrantAuthorization(TASK, ANY, ANY, ALL);
+    createRevokeAuthorization(PROCESS_DEFINITION, PROCESS_KEY, userId, READ_TASK);
+
+    // when
+    TaskQuery query = taskService.createTaskQuery();
+
+    // then
+    verifyQueryResults(query, 0);
   }
 
   @Test
@@ -4438,228 +4470,6 @@ public class TaskAuthorizationTest extends AuthorizationTest {
     assertEquals(userId, task.getAssignee());
   }
 
-  // set priority on standalone task /////////////////////////////////////////////
-
-  @Test
-  public void testStandaloneTaskSetPriorityWithoutAuthorization() {
-    // given
-    String taskId = "myTask";
-    createTask(taskId);
-
-    try {
-      // when
-      taskService.setPriority(taskId, 80);
-      fail("Exception expected: It should not be possible to set a priority");
-    } catch (AuthorizationException e) {
-      // then
-      testRule.assertTextPresent("The user with id 'test' does not have one of the following permissions: 'TASK_ASSIGN'", e.getMessage());
-    }
-
-    deleteTask(taskId, true);
-  }
-
-  @Test
-  public void testStandaloneTaskSetPriority() {
-    // given
-    String taskId = "myTask";
-    createTask(taskId);
-
-    createGrantAuthorization(TASK, taskId, userId, UPDATE);
-
-    // when
-    taskService.setPriority(taskId, 80);
-
-    // then
-    Task task = selectSingleTask();
-    assertNotNull(task);
-    assertEquals(80, task.getPriority());
-
-    deleteTask(taskId, true);
-  }
-
-  @Test
-  public void testStandaloneTaskSetPriorityWithTaskAssignPermission() {
-    // given
-    String taskId = "myTask";
-    createTask(taskId);
-
-    createGrantAuthorization(TASK, taskId, userId, TASK_ASSIGN);
-
-    // when
-    taskService.setPriority(taskId, 80);
-
-    // then
-    Task task = selectSingleTask();
-    assertNotNull(task);
-    assertEquals(80, task.getPriority());
-
-    deleteTask(taskId, true);
-  }
-
-  // set priority on process task /////////////////////////////////////////////
-
-  @Test
-  public void testProcessTaskSetPriorityWithoutAuthorization() {
-    // given
-    startProcessInstanceByKey(PROCESS_KEY);
-    String taskId = selectSingleTask().getId();
-
-    try {
-      // when
-      taskService.setPriority(taskId, 80);
-      fail("Exception expected: It should not be possible to set a priority");
-    } catch (AuthorizationException e) {
-      // then
-      String message = e.getMessage();
-      testRule.assertTextPresent(userId, message);
-      testRule.assertTextPresent(UPDATE.getName(), message);
-      testRule.assertTextPresent(taskId, message);
-      testRule.assertTextPresent(TASK.resourceName(), message);
-      testRule.assertTextPresent(UPDATE_TASK.getName(), message);
-      testRule.assertTextPresent(PROCESS_DEFINITION.resourceName(), message);
-    }
-  }
-
-  @Test
-  public void testProcessTaskSetPriorityWithUpdatePersmissionOnTask() {
-    // given
-    startProcessInstanceByKey(PROCESS_KEY);
-    String taskId = selectSingleTask().getId();
-
-    createGrantAuthorization(TASK, taskId, userId, UPDATE);
-
-    // when
-    taskService.setPriority(taskId, 80);
-
-    // then
-    Task task = selectSingleTask();
-    assertNotNull(task);
-    assertEquals(80, task.getPriority());
-  }
-
-  @Test
-  public void testProcessTaskSetPriorityWithTaskAssignPermissionOnTask() {
-    // given
-    startProcessInstanceByKey(PROCESS_KEY);
-    String taskId = selectSingleTask().getId();
-
-    createGrantAuthorization(TASK, taskId, userId, TASK_ASSIGN);
-
-    // when
-    taskService.setPriority(taskId, 80);
-
-    // then
-    Task task = selectSingleTask();
-    assertNotNull(task);
-    assertEquals(80, task.getPriority());
-  }
-
-  @Test
-  public void testProcessTaskSetPriorityWithUpdatePersmissionOnAnyTask() {
-    // given
-    startProcessInstanceByKey(PROCESS_KEY);
-    String taskId = selectSingleTask().getId();
-
-    createGrantAuthorization(TASK, ANY, userId, UPDATE);
-
-    // when
-    taskService.setPriority(taskId, 80);
-
-    // then
-    Task task = selectSingleTask();
-    assertNotNull(task);
-    assertEquals(80, task.getPriority());
-  }
-
-  @Test
-  public void testProcessTaskSetPriorityWithTaskAssignPermissionOnAnyTask() {
-    // given
-    startProcessInstanceByKey(PROCESS_KEY);
-    String taskId = selectSingleTask().getId();
-
-    createGrantAuthorization(TASK, ANY, userId, TASK_ASSIGN);
-
-    // when
-    taskService.setPriority(taskId, 80);
-
-    // then
-    Task task = selectSingleTask();
-    assertNotNull(task);
-    assertEquals(80, task.getPriority());
-  }
-
-  @Test
-  public void testProcessTaskSetPriorityWithUpdateTasksPersmissionOnProcessDefinition() {
-    // given
-    startProcessInstanceByKey(PROCESS_KEY);
-    String taskId = selectSingleTask().getId();
-
-    createGrantAuthorization(PROCESS_DEFINITION, PROCESS_KEY, userId, UPDATE_TASK);
-
-    // when
-    taskService.setPriority(taskId, 80);
-
-    // then
-    Task task = selectSingleTask();
-    assertNotNull(task);
-    assertEquals(80, task.getPriority());
-  }
-
-  @Test
-  public void testProcessTaskSetPriorityWithTaskAssignPermissionOnProcessDefinition() {
-    // given
-    startProcessInstanceByKey(PROCESS_KEY);
-    String taskId = selectSingleTask().getId();
-
-    createGrantAuthorization(PROCESS_DEFINITION, PROCESS_KEY, userId, TASK_ASSIGN);
-
-    // when
-    taskService.setPriority(taskId, 80);
-
-    // then
-    Task task = selectSingleTask();
-    assertNotNull(task);
-    assertEquals(80, task.getPriority());
-  }
-
-  @Test
-  public void testProcessTaskSetPriority() {
-    // given
-    startProcessInstanceByKey(PROCESS_KEY);
-    String taskId = selectSingleTask().getId();
-
-    createGrantAuthorization(TASK, taskId, userId, UPDATE);
-    createGrantAuthorization(PROCESS_DEFINITION, PROCESS_KEY, userId, UPDATE_TASK);
-
-    // when
-    taskService.setPriority(taskId, 80);
-
-    // then
-    Task task = selectSingleTask();
-    assertNotNull(task);
-    assertEquals(80, task.getPriority());
-  }
-
-  @Test
-  public void testProcessTaskSetPriorityWithTaskAssignPermission() {
-    // given
-    startProcessInstanceByKey(PROCESS_KEY);
-    String taskId = selectSingleTask().getId();
-
-    createGrantAuthorization(TASK, taskId, userId, TASK_ASSIGN);
-    createGrantAuthorization(PROCESS_DEFINITION, PROCESS_KEY, userId, TASK_ASSIGN);
-
-    // when
-    taskService.setPriority(taskId, 80);
-
-    // then
-    Task task = selectSingleTask();
-    assertNotNull(task);
-    assertEquals(80, task.getPriority());
-  }
-
-  // set priority on case task /////////////////////////////////////////////
-
   @Test
   public void testCaseTaskSetPriority() {
     // given
@@ -6722,14 +6532,6 @@ public class TaskAuthorizationTest extends AuthorizationTest {
 
 
   // helper ////////////////////////////////////////////////////////////////////////////////
-
-  protected void verifyQueryResults(TaskQuery query, int countExpected) {
-    verifyQueryResults((AbstractQuery<?, ?>) query, countExpected);
-  }
-
-  protected void verifyQueryResults(VariableInstanceQuery query, int countExpected) {
-    verifyQueryResults((AbstractQuery<?, ?>) query, countExpected);
-  }
 
   protected void verifyMessageIsValid(String taskId, String message) {
     testRule.assertTextPresent(userId, message);

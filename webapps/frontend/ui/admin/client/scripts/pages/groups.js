@@ -17,14 +17,10 @@
 
 'use strict';
 
-var fs = require('fs');
+var template = require('./groups.html?raw');
+var searchConfig = require('./groups-search-plugin-config.json');
 
-var template = fs.readFileSync(__dirname + '/groups.html', 'utf8');
-var searchConfig = JSON.parse(
-  fs.readFileSync(__dirname + '/groups-search-plugin-config.json', 'utf8')
-);
-
-var angular = require('../../../../../camunda-commons-ui/vendor/angular');
+var angular = require('camunda-commons-ui/vendor/angular');
 
 var debouncePromiseFactory = require('camunda-bpm-sdk-js').utils
   .debouncePromiseFactory;
@@ -101,15 +97,6 @@ var Controller = [
         })
         .catch(angular.noop);
     }
-
-    $scope.availableOperations = {};
-    GroupResource.OPTIONS()
-      .$promise.then(function(response) {
-        angular.forEach(response.links, function(link) {
-          $scope.availableOperations[link.rel] = true;
-        });
-      })
-      .catch(angular.noop);
 
     $scope.$root.showBreadcrumbs = true;
 

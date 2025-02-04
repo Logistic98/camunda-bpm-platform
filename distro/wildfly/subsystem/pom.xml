@@ -4,7 +4,7 @@
   <parent>
     <groupId>org.camunda.bpm.wildfly</groupId>
     <artifactId>camunda-wildfly</artifactId>
-    <version>7.20.0-SNAPSHOT</version>
+    <version>7.23.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>camunda-wildfly-subsystem</artifactId>
@@ -41,6 +41,12 @@
       <artifactId>wildfly-ejb3</artifactId>
       <version>${version.wildfly}</version>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.jboss.openjdk-orb</groupId>
+          <artifactId>openjdk-orb</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     
     <dependency>
@@ -100,7 +106,7 @@
           </includes>
           <forkMode>once</forkMode>
         </configuration>
-      </plugin>     
+      </plugin>
     </plugins>
   </build>
 

@@ -17,11 +17,16 @@
 package org.camunda.bpm.engine.rest;
 
 import static io.restassured.RestAssured.given;
+import static org.camunda.bpm.engine.rest.helper.MockProvider.EXAMPLE_PROCESS_INSTANCE_COMMENT_FULL_MESSAGE;
+import static org.camunda.bpm.engine.rest.helper.MockProvider.EXAMPLE_PROCESS_INSTANCE_COMMENT_ID;
 import static org.camunda.bpm.engine.rest.helper.MockProvider.EXAMPLE_TASK_ID;
+import static org.camunda.bpm.engine.rest.helper.MockProvider.NON_EXISTING_ID;
 import static org.camunda.bpm.engine.rest.helper.MockProvider.createMockBatch;
 import static org.camunda.bpm.engine.rest.helper.MockProvider.createMockHistoricProcessInstance;
 import static org.camunda.bpm.engine.rest.util.DateTimeUtils.DATE_FORMAT_WITH_TIMEZONE;
+import static org.camunda.bpm.engine.rest.util.DateTimeUtils.withTimezone;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -126,13 +131,13 @@ import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
-public class ProcessInstanceRestServiceInteractionTest extends
-    AbstractRestServiceTest {
+public class ProcessInstanceRestServiceInteractionTest extends AbstractRestServiceTest {
 
   protected static final String TEST_DELETE_REASON = "test";
   protected static final String RETRIES = "retries";
   protected static final String FAIL_IF_NOT_EXISTS = "failIfNotExists";
   protected static final String DELETE_REASON = "deleteReason";
+  protected static final String SKIP_IO_MAPPINGS = "skipIoMappings";
 
   @ClassRule
   public static TestContainerRule rule = new TestContainerRule();
@@ -141,6 +146,8 @@ public class ProcessInstanceRestServiceInteractionTest extends
   protected static final String SINGLE_PROCESS_INSTANCE_URL = PROCESS_INSTANCE_URL + "/{id}";
   protected static final String PROCESS_INSTANCE_VARIABLES_URL = SINGLE_PROCESS_INSTANCE_URL + "/variables";
   protected static final String PROCESS_INSTANCE_COMMENTS_URL = SINGLE_PROCESS_INSTANCE_URL + "/comment";
+  protected static final String SINGLE_PROCESS_INSTANCE_SINGLE_COMMENT_URL =
+      PROCESS_INSTANCE_COMMENTS_URL + "/{commentId}";
   protected static final String DELETE_PROCESS_INSTANCES_ASYNC_URL = PROCESS_INSTANCE_URL + "/delete";
   protected static final String DELETE_PROCESS_INSTANCES_ASYNC_HIST_QUERY_URL = PROCESS_INSTANCE_URL + "/delete-historic-query-based";
   protected static final String SET_JOB_RETRIES_ASYNC_URL = PROCESS_INSTANCE_URL + "/job-retries";
@@ -355,7 +362,7 @@ public class ProcessInstanceRestServiceInteractionTest extends
   @Test
   public void testDeleteAsync() {
     List<String> ids = Arrays.asList(MockProvider.EXAMPLE_PROCESS_INSTANCE_ID);
-    when(runtimeServiceMock.deleteProcessInstancesAsync(any(), any(), any(), anyBoolean(), anyBoolean())).thenReturn(new BatchEntity());
+    when(runtimeServiceMock.deleteProcessInstancesAsync(any(), any(), any(), anyString(), anyBoolean(), anyBoolean(), anyBoolean())).thenReturn(new BatchEntity());
 
     Map<String, Object> messageBodyJson = new HashMap<>();
     messageBodyJson.put("processInstanceIds", ids);
@@ -367,7 +374,47 @@ public class ProcessInstanceRestServiceInteractionTest extends
         .statusCode(Status.OK.getStatusCode())
         .when().post(DELETE_PROCESS_INSTANCES_ASYNC_URL);
 
-    verify(runtimeServiceMock, times(1)).deleteProcessInstancesAsync(ids, null, TEST_DELETE_REASON, false, false);
+    verify(runtimeServiceMock, times(1)).deleteProcessInstancesAsync(ids, null, null, TEST_DELETE_REASON, false, false, false);
+  }
+
+  @Test
+  public void testDeleteAsyncWithSkipIoMappingsTrue() {
+    var ids = List.of(MockProvider.EXAMPLE_PROCESS_INSTANCE_ID);
+    when(runtimeServiceMock.deleteProcessInstancesAsync(any(), any(), any(), anyString(), anyBoolean(), anyBoolean(), eq(true))).thenReturn(new BatchEntity());
+
+    var messageBodyJson = Map.of(
+        "processInstanceIds", ids,
+        DELETE_REASON, TEST_DELETE_REASON,
+        SKIP_IO_MAPPINGS, true
+    );
+
+    given()
+        .contentType(ContentType.JSON).body(messageBodyJson)
+        .then().expect()
+        .statusCode(Status.OK.getStatusCode())
+        .when().post(DELETE_PROCESS_INSTANCES_ASYNC_URL);
+
+    verify(runtimeServiceMock, times(1)).deleteProcessInstancesAsync(ids, null, null, TEST_DELETE_REASON, false, false, true);
+  }
+
+  @Test
+  public void testDeleteAsyncWithSkipIoMappingsFalse() {
+    var ids = List.of(MockProvider.EXAMPLE_PROCESS_INSTANCE_ID);
+    when(runtimeServiceMock.deleteProcessInstancesAsync(any(), any(), any(), anyString(), anyBoolean(), anyBoolean(), eq(false))).thenReturn(new BatchEntity());
+
+    var messageBodyJson = Map.of(
+        "processInstanceIds", ids,
+        DELETE_REASON, TEST_DELETE_REASON,
+        SKIP_IO_MAPPINGS, false
+    );
+
+    given()
+        .contentType(ContentType.JSON).body(messageBodyJson)
+        .then().expect()
+        .statusCode(Status.OK.getStatusCode())
+        .when().post(DELETE_PROCESS_INSTANCES_ASYNC_URL);
+
+    verify(runtimeServiceMock, times(1)).deleteProcessInstancesAsync(ids, null, null, TEST_DELETE_REASON, false, false, false);
   }
 
   @Test
@@ -376,7 +423,8 @@ public class ProcessInstanceRestServiceInteractionTest extends
     messageBodyJson.put(DELETE_REASON, TEST_DELETE_REASON);
     ProcessInstanceQueryDto query = new ProcessInstanceQueryDto();
     messageBodyJson.put("processInstanceQuery", query);
-    when(runtimeServiceMock.deleteProcessInstancesAsync(any(), any(), any(), anyBoolean(), anyBoolean())).thenReturn(new BatchEntity());
+
+    when(runtimeServiceMock.deleteProcessInstancesAsync(any(), any(), any(), anyString(), anyBoolean(), anyBoolean(), anyBoolean())).thenReturn(new BatchEntity());
 
     given()
         .contentType(ContentType.JSON).body(messageBodyJson)
@@ -385,13 +433,20 @@ public class ProcessInstanceRestServiceInteractionTest extends
         .when().post(DELETE_PROCESS_INSTANCES_ASYNC_URL);
 
     verify(runtimeServiceMock, times(1)).deleteProcessInstancesAsync(
-        any(), Mockito.any(), Mockito.eq(TEST_DELETE_REASON), Mockito.eq(false), Mockito.eq(false));
+        any(),
+        any(),
+        any(),
+        eq(TEST_DELETE_REASON),
+        eq(false),
+        eq(false),
+        eq(false)
+    );
   }
 
   @Test
   public void testDeleteAsyncWithBadRequestQuery() {
     doThrow(new BadUserRequestException("process instance ids are empty"))
-      .when(runtimeServiceMock).deleteProcessInstancesAsync(eq((List<String>) null), eq((ProcessInstanceQuery) null), anyString(), anyBoolean(), anyBoolean());
+      .when(runtimeServiceMock).deleteProcessInstancesAsync(eq(null), eq(null), any(), anyString(), anyBoolean(), anyBoolean(), anyBoolean());
 
     Map<String, Object> messageBodyJson = new HashMap<>();
     messageBodyJson.put(DELETE_REASON, TEST_DELETE_REASON);
@@ -405,7 +460,8 @@ public class ProcessInstanceRestServiceInteractionTest extends
 
   @Test
   public void testDeleteAsyncWithSkipCustomListeners() {
-    when(runtimeServiceMock.deleteProcessInstancesAsync(any(), any(), any(), anyBoolean(), anyBoolean())).thenReturn(new BatchEntity());
+    when(runtimeServiceMock.deleteProcessInstancesAsync(any(), any(), any(), anyString(), anyBoolean(), anyBoolean(), anyBoolean())).thenReturn(new BatchEntity());
+
     Map<String, Object> messageBodyJson = new HashMap<>();
     messageBodyJson.put(DELETE_REASON, TEST_DELETE_REASON);
     messageBodyJson.put("processInstanceIds", Arrays.asList("processInstanceId1", "processInstanceId2"));
@@ -417,12 +473,21 @@ public class ProcessInstanceRestServiceInteractionTest extends
         .statusCode(Status.OK.getStatusCode())
         .when().post(DELETE_PROCESS_INSTANCES_ASYNC_URL);
 
-    verify(runtimeServiceMock).deleteProcessInstancesAsync(anyList(), any(), Mockito.eq(TEST_DELETE_REASON), Mockito.eq(true), Mockito.eq(false));
+    verify(runtimeServiceMock).deleteProcessInstancesAsync(
+        anyList(),
+        any(),
+        any(),
+        eq(TEST_DELETE_REASON),
+        eq(true),
+        eq(false),
+        eq(false)
+    );
   }
 
   @Test
   public void testDeleteAsyncWithSkipSubprocesses() {
-    when(runtimeServiceMock.deleteProcessInstancesAsync(any(), any(), any(), anyBoolean(), anyBoolean())).thenReturn(new BatchEntity());
+    when(runtimeServiceMock.deleteProcessInstancesAsync(any(), any(), any(), anyString(), anyBoolean(), anyBoolean(), anyBoolean())).thenReturn(new BatchEntity());
+
     Map<String, Object> messageBodyJson = new HashMap<>();
     messageBodyJson.put(DELETE_REASON, TEST_DELETE_REASON);
     messageBodyJson.put("processInstanceIds", Arrays.asList("processInstanceId1", "processInstanceId2"));
@@ -437,9 +502,12 @@ public class ProcessInstanceRestServiceInteractionTest extends
     verify(runtimeServiceMock).deleteProcessInstancesAsync(
         anyList(),
         any(),
+        any(),
         eq(TEST_DELETE_REASON),
         eq(false),
-        eq(true));
+        eq(true),
+        eq(false)
+    );
   }
 
   @Test
@@ -450,7 +518,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
       any(),
       any(),
       anyBoolean(),
-      anyBoolean()))
+      anyBoolean(),
+      anyBoolean()
+    ))
     .thenReturn(new BatchEntity());
 
     HistoricProcessInstanceQuery mockedHistoricProcessInstanceQuery = mock(HistoricProcessInstanceQueryImpl.class);
@@ -472,7 +542,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
         mockedHistoricProcessInstanceQuery,
         null,
         false,
-        false);
+        false,
+        false
+    );
   }
 
   @Test
@@ -483,7 +555,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
       eq((HistoricProcessInstanceQuery)null),
       any(),
       anyBoolean(),
-      anyBoolean()))
+      anyBoolean(),
+      anyBoolean()
+    ))
     .thenReturn(new BatchEntity());
 
     DeleteProcessInstancesDto body = new DeleteProcessInstancesDto();
@@ -502,7 +576,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
       null,
       null,
       false,
-      false);
+      false,
+      false
+    );
   }
 
   @Test
@@ -513,7 +589,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
       any(),
       any(),
       anyBoolean(),
-      anyBoolean()))
+      anyBoolean(),
+      anyBoolean()
+    ))
     .thenReturn(new BatchEntity());
 
     HistoricProcessInstanceQuery mockedHistoricProcessInstanceQuery = mock(HistoricProcessInstanceQueryImpl.class);
@@ -536,7 +614,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
       mockedHistoricProcessInstanceQuery,
       null,
       false,
-      false);
+      false,
+      false
+    );
   }
 
   @Test
@@ -547,6 +627,7 @@ public class ProcessInstanceRestServiceInteractionTest extends
         eq((ProcessInstanceQuery)null),
         eq((HistoricProcessInstanceQuery)null),
         any(),
+        anyBoolean(),
         anyBoolean(),
         anyBoolean());
 
@@ -563,7 +644,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
         null,
         null,
         false,
-        false);
+        false,
+        false
+    );
   }
 
   @Test
@@ -574,7 +657,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
       any(),
       any(),
       anyBoolean(),
-      anyBoolean()))
+      anyBoolean(),
+      anyBoolean()
+    ))
     .thenReturn(new BatchEntity());
 
     DeleteProcessInstancesDto body = new DeleteProcessInstancesDto();
@@ -593,7 +678,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
         null,
         MockProvider.EXAMPLE_HISTORIC_PROCESS_INSTANCE_DELETE_REASON,
         false,
-        false);
+        false,
+        false
+    );
   }
 
   @Test
@@ -604,7 +691,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
       any(),
       any(),
       anyBoolean(),
-      anyBoolean()))
+      anyBoolean(),
+      anyBoolean()
+    ))
     .thenReturn(new BatchEntity());
 
     DeleteProcessInstancesDto body = new DeleteProcessInstancesDto();
@@ -623,7 +712,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
       null,
       null,
       true,
-      false);
+      false,
+      false
+    );
   }
 
   @Test
@@ -634,7 +725,9 @@ public class ProcessInstanceRestServiceInteractionTest extends
       eq((HistoricProcessInstanceQuery)null),
       any(),
       anyBoolean(),
-      anyBoolean()))
+      anyBoolean(),
+      anyBoolean()
+    ))
     .thenReturn(new BatchEntity());
 
     DeleteProcessInstancesDto body = new DeleteProcessInstancesDto();
@@ -653,7 +746,58 @@ public class ProcessInstanceRestServiceInteractionTest extends
       null,
       null,
       false,
-      true);
+      true,
+      false
+    );
+  }
+
+  @Test
+  public void testDeleteAsyncHistoricQueryBasedWithSkipIoMappingsTrue() {
+    when(runtimeServiceMock.deleteProcessInstancesAsync(
+        eq(null),
+        eq(null),
+        eq(null),
+        any(),
+        anyBoolean(),
+        anyBoolean(),
+        eq(true)
+    )).thenReturn(new BatchEntity());
+
+    DeleteProcessInstancesDto body = new DeleteProcessInstancesDto();
+    body.setSkipIoMappings(true);
+
+    given()
+        .contentType(ContentType.JSON).body(body)
+        .then().expect()
+        .statusCode(Status.OK.getStatusCode())
+        .when().post(DELETE_PROCESS_INSTANCES_ASYNC_HIST_QUERY_URL);
+
+    verify(runtimeServiceMock, times(1)).deleteProcessInstancesAsync(null, null, null, null, false, false, true);
+  }
+
+  @Test
+  public void testDeleteAsyncHistoricQueryBasedWithSkipIoMappingsFalse() {
+    when(runtimeServiceMock.deleteProcessInstancesAsync(
+        eq(null),
+        eq(null),
+        eq(null),
+        any(),
+        anyBoolean(),
+        anyBoolean(),
+        eq(false)
+    ))
+        .thenReturn(new BatchEntity());
+
+    DeleteProcessInstancesDto body = new DeleteProcessInstancesDto();
+    body.setSkipIoMappings(false);
+
+    given()
+        .contentType(ContentType.JSON).body(body)
+        .then().expect()
+        .statusCode(Status.OK.getStatusCode())
+        .when().post(DELETE_PROCESS_INSTANCES_ASYNC_HIST_QUERY_URL);
+
+    verify(runtimeServiceMock, times(1)).deleteProcessInstancesAsync(null, null, null, null, false, false, false);
   }
 
   @Test
@@ -699,6 +843,340 @@ public class ProcessInstanceRestServiceInteractionTest extends
       .body("$.size()", equalTo(0))
     .when()
       .get(PROCESS_INSTANCE_COMMENTS_URL);
+  }
+
+  @Test
+  public void testDeleteInstanceCommentThrowsAuthorizationException() {
+    String message = "expected exception";
+    doThrow(new AuthorizationException(message)).when(taskServiceMock)
+        .deleteProcessInstanceComment(EXAMPLE_PROCESS_INSTANCE_ID, EXAMPLE_PROCESS_INSTANCE_COMMENT_ID);
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .pathParam("commentId", EXAMPLE_PROCESS_INSTANCE_COMMENT_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.FORBIDDEN.getStatusCode())
+        .when()
+        .delete(SINGLE_PROCESS_INSTANCE_SINGLE_COMMENT_URL);
+  }
+
+  @Test
+  public void testDeleteInstanceComment() {
+    mockHistoryFull();
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .pathParam("commentId", EXAMPLE_PROCESS_INSTANCE_COMMENT_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.NO_CONTENT.getStatusCode())
+        .when()
+        .delete(SINGLE_PROCESS_INSTANCE_SINGLE_COMMENT_URL);
+
+    verify(taskServiceMock).deleteProcessInstanceComment(EXAMPLE_PROCESS_INSTANCE_ID, EXAMPLE_PROCESS_INSTANCE_COMMENT_ID);
+  }
+
+  @Test
+  public void testDeleteInstanceCommentWithHistoryDisabled() {
+    mockHistoryDisabled();
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .pathParam("commentId", EXAMPLE_PROCESS_INSTANCE_COMMENT_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.FORBIDDEN.getStatusCode())
+        .body(containsString("History is not enabled"))
+        .when()
+        .delete(SINGLE_PROCESS_INSTANCE_SINGLE_COMMENT_URL);
+  }
+
+  @Test
+  public void testDeleteInstanceCommentForNonExistingCommentId() {
+    mockHistoryFull();
+    doThrow(new NullValueException()).when(taskServiceMock)
+        .deleteProcessInstanceComment(EXAMPLE_PROCESS_INSTANCE_ID, NON_EXISTING_ID);
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .pathParam("commentId", NON_EXISTING_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.BAD_REQUEST.getStatusCode())
+        .contentType(ContentType.JSON)
+        .when()
+        .delete(SINGLE_PROCESS_INSTANCE_SINGLE_COMMENT_URL);
+  }
+
+  @Test
+  public void testDeleteInstanceCommentForNonExistingCommentIdWithHistoryDisabled() {
+    mockHistoryDisabled();
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .pathParam("commentId", NON_EXISTING_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.FORBIDDEN.getStatusCode())
+        .body(containsString("History is not enabled"))
+        .when()
+        .delete(SINGLE_PROCESS_INSTANCE_SINGLE_COMMENT_URL);
+  }
+
+  @Test
+  public void testDeleteInstanceCommentForNonExistingProcessInstance() {
+    mockHistoryFull();
+    historicProcessInstanceQueryMock = mock(HistoricProcessInstanceQuery.class);
+    when(historyServiceMock.createHistoricProcessInstanceQuery()).thenReturn(historicProcessInstanceQueryMock);
+    when(historicProcessInstanceQueryMock.processInstanceId(eq(NON_EXISTING_ID))).thenReturn(
+        historicProcessInstanceQueryMock);
+    when(historicProcessInstanceQueryMock.singleResult()).thenReturn(null);
+
+    given().pathParam("id", NON_EXISTING_ID)
+        .pathParam("commentId", EXAMPLE_PROCESS_INSTANCE_COMMENT_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.NOT_FOUND.getStatusCode())
+        .body(containsString("No process instance found for id " + NON_EXISTING_ID))
+        .when()
+        .delete(SINGLE_PROCESS_INSTANCE_SINGLE_COMMENT_URL);
+  }
+
+  @Test
+  public void testDeleteInstanceCommentForNonExistingWithHistoryDisabled() {
+    mockHistoryDisabled();
+
+    given().pathParam("id", NON_EXISTING_ID)
+        .pathParam("commentId", EXAMPLE_PROCESS_INSTANCE_COMMENT_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.FORBIDDEN.getStatusCode())
+        .body(containsString("History is not enabled"))
+        .when()
+        .delete(SINGLE_PROCESS_INSTANCE_SINGLE_COMMENT_URL);
+  }
+
+  @Test
+  public void testDeleteProcessInstanceCommentsThrowsAuthorizationException() {
+    String message = "expected exception";
+    doThrow(new AuthorizationException(message)).when(taskServiceMock)
+        .deleteProcessInstanceComments(MockProvider.EXAMPLE_TASK_ID);
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.FORBIDDEN.getStatusCode())
+        .when()
+        .delete(PROCESS_INSTANCE_COMMENTS_URL);
+  }
+
+  @Test
+  public void testDeleteProcessInstanceComments() {
+    mockHistoryFull();
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.NO_CONTENT.getStatusCode())
+        .when()
+        .delete(PROCESS_INSTANCE_COMMENTS_URL);
+
+    verify(taskServiceMock).deleteProcessInstanceComments(EXAMPLE_PROCESS_INSTANCE_ID);
+  }
+
+  @Test
+  public void testDeleteProcessInstanceCommentsWithHistoryDisabled() {
+    mockHistoryDisabled();
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.FORBIDDEN.getStatusCode())
+        .body(containsString("History is not enabled"))
+        .when()
+        .delete(PROCESS_INSTANCE_COMMENTS_URL);
+  }
+
+  @Test
+  public void testDeleteProcessInstanceCommentsForNonExisting() {
+    mockHistoryFull();
+    historicProcessInstanceQueryMock = mock(HistoricProcessInstanceQuery.class);
+    when(historyServiceMock.createHistoricProcessInstanceQuery()).thenReturn(historicProcessInstanceQueryMock);
+    when(historicProcessInstanceQueryMock.processInstanceId(eq(NON_EXISTING_ID))).thenReturn(
+        historicProcessInstanceQueryMock);
+    when(historicProcessInstanceQueryMock.singleResult()).thenReturn(null);
+
+    given().pathParam("id", NON_EXISTING_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.NOT_FOUND.getStatusCode())
+        .body(containsString("No process instance found for id " + NON_EXISTING_ID))
+        .when()
+        .delete(PROCESS_INSTANCE_COMMENTS_URL);
+  }
+
+  @Test
+  public void testDeleteProcessInstanceCommentsForNonExistingWithHistoryDisabled() {
+    mockHistoryDisabled();
+
+    given().pathParam("id", NON_EXISTING_ID)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .then()
+        .expect()
+        .statusCode(Status.FORBIDDEN.getStatusCode())
+        .body(containsString("History is not enabled"))
+        .when()
+        .delete(PROCESS_INSTANCE_COMMENTS_URL);
+  }
+
+  @Test
+  public void testUpdateProcessInstanceCommentCommentIdNull() {
+    mockHistoryFull();
+
+    String message = "expected exception";
+    doThrow(new NullValueException(message)).when(taskServiceMock)
+        .updateProcessInstanceComment(EXAMPLE_PROCESS_INSTANCE_ID, null, EXAMPLE_PROCESS_INSTANCE_COMMENT_FULL_MESSAGE);
+
+    Map<String, Object> json = new HashMap<>();
+
+    json.put("id", null);
+    json.put("message", EXAMPLE_PROCESS_INSTANCE_COMMENT_FULL_MESSAGE);
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .body(json)
+        .contentType(ContentType.JSON)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .expect()
+        .statusCode(Status.BAD_REQUEST.getStatusCode())
+        .when()
+        .put(PROCESS_INSTANCE_COMMENTS_URL);
+  }
+
+  @Test
+  public void testUpdateProcessInstanceCommentMessageIsNull() {
+    mockHistoryFull();
+
+    String message = "expected exception";
+    doThrow(new NullValueException(message)).when(taskServiceMock)
+        .updateProcessInstanceComment(EXAMPLE_PROCESS_INSTANCE_ID, EXAMPLE_PROCESS_INSTANCE_COMMENT_ID, null);
+
+    Map<String, Object> json = new HashMap<>();
+
+    json.put("id", EXAMPLE_PROCESS_INSTANCE_COMMENT_ID);
+    json.put("message", null);
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .body(json)
+        .contentType(ContentType.JSON)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .expect()
+        .statusCode(Status.BAD_REQUEST.getStatusCode())
+        .when()
+        .put(PROCESS_INSTANCE_COMMENTS_URL);
+  }
+
+  @Test
+  public void testUpdateProcessInstanceComment() {
+    mockHistoryFull();
+    Map<String, Object> json = new HashMap<>();
+
+    json.put("id", EXAMPLE_PROCESS_INSTANCE_COMMENT_ID);
+    json.put("message", EXAMPLE_PROCESS_INSTANCE_COMMENT_FULL_MESSAGE);
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .body(json)
+        .contentType(ContentType.JSON)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .expect()
+        .statusCode(Status.NO_CONTENT.getStatusCode())
+        .when()
+        .put(PROCESS_INSTANCE_COMMENTS_URL);
+
+    verify(taskServiceMock).updateProcessInstanceComment(EXAMPLE_PROCESS_INSTANCE_ID,
+        EXAMPLE_PROCESS_INSTANCE_COMMENT_ID, EXAMPLE_PROCESS_INSTANCE_COMMENT_FULL_MESSAGE);
+  }
+
+  @Test
+  public void testUpdateProcessInstanceCommentExtraProperties() {
+    mockHistoryFull();
+
+    Map<String, Object> json = new HashMap<>();
+    //Only id and message are used
+    json.put("id", EXAMPLE_PROCESS_INSTANCE_COMMENT_ID);
+    json.put("userId", "anyUserId");
+    json.put("time", withTimezone("2014-01-01T00:00:00"));
+    json.put("message", EXAMPLE_PROCESS_INSTANCE_COMMENT_FULL_MESSAGE);
+    json.put("removalTime", withTimezone("2014-05-01T00:00:00"));
+    json.put("processInstanceId", MockProvider.EXAMPLE_PROCESS_INSTANCE_ID);
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .body(json)
+        .contentType(ContentType.JSON)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .expect()
+        .statusCode(Status.NO_CONTENT.getStatusCode())
+        .when()
+        .put(PROCESS_INSTANCE_COMMENTS_URL);
+
+    verify(taskServiceMock).updateProcessInstanceComment(EXAMPLE_PROCESS_INSTANCE_ID,
+        EXAMPLE_PROCESS_INSTANCE_COMMENT_ID, EXAMPLE_PROCESS_INSTANCE_COMMENT_FULL_MESSAGE);
+  }
+
+  @Test
+  public void testUpdateProcessInstanceCommentProcessInstanceIdNotFound() {
+    mockHistoryFull();
+    historicProcessInstanceQueryMock = mock(HistoricProcessInstanceQuery.class);
+    when(historyServiceMock.createHistoricProcessInstanceQuery()).thenReturn(historicProcessInstanceQueryMock);
+    when(historicProcessInstanceQueryMock.processInstanceId(eq(NON_EXISTING_ID))).thenReturn(
+        historicProcessInstanceQueryMock);
+    when(historicProcessInstanceQueryMock.singleResult()).thenReturn(null);
+
+    Map<String, Object> json = new HashMap<>();
+
+    json.put("id", EXAMPLE_PROCESS_INSTANCE_ID);
+    json.put("message", EXAMPLE_PROCESS_INSTANCE_COMMENT_FULL_MESSAGE);
+
+    given().pathParam("id", NON_EXISTING_ID)
+        .body(json)
+        .contentType(ContentType.JSON)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .expect()
+        .statusCode(Status.NOT_FOUND.getStatusCode())
+        .contentType(ContentType.JSON)
+        .body("type", equalTo(InvalidRequestException.class.getSimpleName()))
+        .body(containsString("No process instance found for id " + NON_EXISTING_ID))
+        .when()
+        .put(PROCESS_INSTANCE_COMMENTS_URL);
+  }
+
+  @Test
+  public void testUpdateProcessInstanceCommentThrowsAuthorizationException() {
+    mockHistoryFull();
+    String message = "expected exception";
+    doThrow(new AuthorizationException(message)).when(taskServiceMock)
+        .updateProcessInstanceComment(EXAMPLE_PROCESS_INSTANCE_ID, EXAMPLE_PROCESS_INSTANCE_COMMENT_ID,
+            EXAMPLE_PROCESS_INSTANCE_COMMENT_FULL_MESSAGE);
+
+    Map<String, Object> json = new HashMap<>();
+    json.put("id", EXAMPLE_PROCESS_INSTANCE_COMMENT_ID);
+    json.put("message", EXAMPLE_PROCESS_INSTANCE_COMMENT_FULL_MESSAGE);
+
+    given().pathParam("id", EXAMPLE_PROCESS_INSTANCE_ID)
+        .body(json)
+        .contentType(ContentType.JSON)
+        .header("accept", MediaType.APPLICATION_JSON)
+        .expect()
+        .statusCode(Status.FORBIDDEN.getStatusCode())
+        .contentType(ContentType.JSON)
+        .when()
+        .put(PROCESS_INSTANCE_COMMENTS_URL);
+
   }
 
   @Test
@@ -946,6 +1424,7 @@ public class ProcessInstanceRestServiceInteractionTest extends
       .body("id", Matchers.equalTo(MockProvider.EXAMPLE_PROCESS_INSTANCE_ID))
       .body("ended", Matchers.equalTo(MockProvider.EXAMPLE_PROCESS_INSTANCE_IS_ENDED))
       .body("definitionId", Matchers.equalTo(MockProvider.EXAMPLE_PROCESS_DEFINITION_ID))
+      .body("definitionKey", Matchers.equalTo(MockProvider.EXAMPLE_PROCESS_DEFINITION_KEY))
       .body("businessKey", Matchers.equalTo(MockProvider.EXAMPLE_PROCESS_INSTANCE_BUSINESS_KEY))
       .body("suspended", Matchers.equalTo(MockProvider.EXAMPLE_PROCESS_INSTANCE_IS_SUSPENDED))
       .body("tenantId", Matchers.equalTo(MockProvider.EXAMPLE_TENANT_ID))
@@ -1532,7 +2011,7 @@ public class ProcessInstanceRestServiceInteractionTest extends
   @Test
   public void testPutSingleVariableWithTypeLong() {
     String variableKey = "aVariableKey";
-    Long variableValue = Long.valueOf(123);
+    Long variableValue = 123L;
     String type = "Long";
 
     Map<String, Object> variableJson = VariablesBuilder.getVariableValueMap(variableValue, type);

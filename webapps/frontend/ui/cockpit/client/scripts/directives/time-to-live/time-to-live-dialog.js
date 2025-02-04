@@ -17,11 +17,7 @@
 
 'use strict';
 
-const fs = require('fs');
-const template = fs.readFileSync(
-  __dirname + '/time-to-live-dialog.html',
-  'utf8'
-);
+const template = require('./time-to-live-dialog.html?raw');
 
 const Controller = [
   'camAPI',
@@ -29,11 +25,66 @@ const Controller = [
   '$scope',
   'Notifications',
   '$translate',
-  function(camAPI, $modalInstance, $scope, Notifications, $translate) {
+  '$location',
+  'hasPlugin',
+  function(
+    camAPI,
+    $modalInstance,
+    $scope,
+    Notifications,
+    $translate,
+    $location,
+    hasPlugin
+  ) {
     const resource = camAPI.resource($scope.resource);
+    const hasBatchOperationPlugin = hasPlugin(
+      'cockpit.navigation',
+      'batch_operation'
+    );
+    $scope.showLinkToBatchProcess =
+      hasBatchOperationPlugin &&
+      ['process-definition', 'decision-definition'].includes(
+        $scope.$parent?.resource
+      );
     $scope.status = null;
     $scope.mode = 'UPDATE';
     $scope.ttl = $scope.definition.historyTimeToLive;
+
+    $scope.openBatchOperation = () => {
+      let batchSearchQuery = null;
+      let operation = null;
+
+      if ($scope.$parent?.resource === 'process-definition') {
+        operation = 'PROCESS_SET_REMOVAL_TIME';
+        batchSearchQuery = JSON.stringify([
+          {
+            type: 'PIprocessDefinitionKey',
+            operator: 'eq',
+            value: $scope.definition.key
+          },
+          {
+            type: 'PIfinished',
+            operator: 'eq',
+            value: ''
+          }
+        ]);
+      } else {
+        operation = 'DECISION_SET_REMOVAL_TIME';
+        batchSearchQuery = JSON.stringify([
+          {
+            type: 'decisionDefinitionKeyIn',
+            operator: 'In',
+            value: [$scope.definition.key]
+          }
+        ]);
+      }
+
+      $scope.$dismiss();
+      $location.path('/batch/operation').search({
+        batchSearchQuery,
+        operation
+      });
+    };
 
     $scope.isValid = () => {
       return (
@@ -56,7 +107,6 @@ const Controller = [
         .then(function() {
           $scope.status = 'SUCCESS';
           $scope.definition.historyTimeToLive = $scope.ttl;
-          customOnChange();
 
           Notifications.addMessage({
             status: $translate.instant('TIME_TO_LIVE_POPUP_STATE_STATUS'),
@@ -72,12 +122,6 @@ const Controller = [
             message: error
           });
         });
-    };
-
-    const customOnChange = () => {
-      if (typeof $scope.customOnChange === 'function') {
-        $scope.customOnChange();
-      }
     };
 
     const getAndCorrectTimeToLiveValue = () => {

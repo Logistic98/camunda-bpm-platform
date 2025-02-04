@@ -59,11 +59,12 @@ public class AbstractWebappUiIntegrationTest extends AbstractWebIntegrationTest 
         .build();
 
     ChromeOptions chromeOptions = new ChromeOptions()
-        .setHeadless(true)
+        .addArguments("--headless=new")
         .addArguments("--window-size=1920,1200")
         .addArguments("--disable-gpu")
         .addArguments("--no-sandbox")
-        .addArguments("--disable-dev-shm-usage");
+        .addArguments("--disable-dev-shm-usage")
+        .addArguments("--remote-allow-origins=*");
 
     driver = new ChromeDriver(chromeDriverService, chromeOptions);
   }

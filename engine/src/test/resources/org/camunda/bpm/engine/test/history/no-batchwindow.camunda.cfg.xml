@@ -26,7 +26,6 @@
 
     <!-- turn off metrics reporter -->
     <property name="dbMetricsReporterActivate" value="false" />
-    <property name="telemetryReporterActivate" value="false" />
     <property name="taskMetricsEnabled" value="false" />
 
     <!-- mail server configurations -->
@@ -36,6 +35,7 @@
     <property name="authorizationCheckRevokes" value="${authorizationCheckRevokes}"/>
 
     <property name="jdbcBatchProcessing" value="${jdbcBatchProcessing}"/>
+    <property name="enforceHistoryTimeToLive" value="false" />
 
     <!--<property name="idGenerator" ref="uuidGenerator" />-->
 

@@ -16,12 +16,19 @@
  */
 
 'use strict';
-var moment = require('../../../../camunda-commons-ui/vendor/moment'),
-  angular = require('../../../../camunda-commons-ui/vendor/angular');
-
-var now = new Date().getTime();
+var moment = require('camunda-commons-ui/vendor/moment'),
+  angular = require('camunda-commons-ui/vendor/angular');
 
 module.exports = function(ngModule, appRoot, appName) {
+  ngModule.factory('sanitizeMissingTranslationKey', [
+    '$translateSanitization',
+    function($sanitize) {
+      return function(translationKey) {
+        return $sanitize.sanitize(translationKey, 'text', 'escape');
+      };
+    }
+  ]);
+
   ngModule.factory('localeLoader', [
     '$q',
     '$http',
@@ -59,7 +66,7 @@ module.exports = function(ngModule, appRoot, appName) {
               url: [options.prefix, options.key, options.suffix].join(''),
               method: 'GET',
               // Use `now` instead of `window.bust` to update translations without rebuilding the app
-              params: {_: now}
+              params: {bust: CAMUNDA_VERSION} // eslint-disable-line
             },
             options.$http
           )
@@ -103,6 +110,9 @@ module.exports = function(ngModule, appRoot, appName) {
     '$translateProvider',
     'configurationProvider',
     function($translateProvider, configurationProvider) {
+      $translateProvider.useMissingTranslationHandler(
+        'sanitizeMissingTranslationKey'
+      );
       var avail = configurationProvider.getAvailableLocales();
       var fallback = configurationProvider.getFallbackLocale();
 

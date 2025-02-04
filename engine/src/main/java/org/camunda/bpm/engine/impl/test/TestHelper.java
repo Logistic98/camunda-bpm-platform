@@ -560,7 +560,7 @@ public abstract class TestHelper {
         DbEntityManager dbEntityManager = commandContext.getDbEntityManager();
         PropertyEntity historyLevelProperty = dbEntityManager.selectById(PropertyEntity.class, "historyLevel");
         if (historyLevelProperty != null) {
-          if (processEngineConfiguration.getHistoryLevel().getId() != new Integer(historyLevelProperty.getValue())) {
+          if (processEngineConfiguration.getHistoryLevel().getId() != Integer.parseInt(historyLevelProperty.getValue())) {
             historyLevelProperty.setValue(Integer.toString(processEngineConfiguration.getHistoryLevel().getId()));
             dbEntityManager.merge(historyLevelProperty);
           }
@@ -591,18 +591,6 @@ public abstract class TestHelper {
         historyService.deleteUserOperationLogEntry(log.getId());
       }
     }
-  }
-
-  public static void deleteTelemetryProperty(ProcessEngineConfigurationImpl processEngineConfiguration) {
-    processEngineConfiguration.getCommandExecutorTxRequired()
-      .execute(commandContext -> {
-        DbEntityManager dbEntityManager = commandContext.getDbEntityManager();
-        PropertyEntity telemetryProperty = dbEntityManager.selectById(PropertyEntity.class, "camunda.telemetry.enabled");
-        if (telemetryProperty != null) {
-          dbEntityManager.delete(telemetryProperty);
-        }
-        return null;
-      });
   }
 
   public static void deleteInstallationId(ProcessEngineConfigurationImpl processEngineConfiguration) {

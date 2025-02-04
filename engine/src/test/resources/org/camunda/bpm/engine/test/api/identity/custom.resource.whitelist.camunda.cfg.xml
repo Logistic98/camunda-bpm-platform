@@ -26,7 +26,6 @@
 
     <!-- turn off metrics reporter -->
     <property name="dbMetricsReporterActivate" value="false" />
-    <property name="telemetryReporterActivate" value="false" />
     <property name="taskMetricsEnabled" value="false" />
 
     <!-- mail server configurations -->
@@ -41,6 +40,7 @@
     <property name="generalResourceWhitelistPattern" value="[a-zA-Z0-9]+" />
     <property name="userResourceWhitelistPattern" value="[a-zA-Z]+" />
     <property name="groupResourceWhitelistPattern" value="\d+" />
+    <property name="enforceHistoryTimeToLive" value="false" />
 
     <!--<property name="idGenerator" ref="uuidGenerator" />-->
 

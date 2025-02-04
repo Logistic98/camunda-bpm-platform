@@ -19,7 +19,6 @@ package org.camunda.bpm.engine.impl.persistence.entity;
 import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.db.EnginePersistenceLogger;
 import org.camunda.bpm.engine.impl.interceptor.CommandContext;
-import org.camunda.bpm.engine.impl.jobexecutor.JobHandler;
 
 /**
  * JobEntity for ever living job, which can be rescheduled and executed again.
@@ -34,6 +33,7 @@ public class EverLivingJobEntity extends JobEntity {
 
   public static final String TYPE = "ever-living";
 
+  @Override
   public String getType() {
     return TYPE;
   }
@@ -47,29 +47,7 @@ public class EverLivingJobEntity extends JobEntity {
 
   @Override
   public void init(CommandContext commandContext) {
-    init(commandContext, false);
-  }
-
-  public void init(CommandContext commandContext, boolean shouldResetLock) {
-    // clean additional data related to this job
-    JobHandler jobHandler = getJobHandler();
-    if (jobHandler != null) {
-      jobHandler.onDelete(getJobHandlerConfiguration(), this);
-    }
-
-    //cancel the retries -> will resolve job incident if present
-    setRetries(commandContext.getProcessEngineConfiguration().getDefaultNumberOfRetries());
-
-    //delete the job's exception byte array and exception message
-    if (exceptionByteArrayId != null) {
-      clearFailedJobException();
-    }
-
-    //clean the lock information
-    if (shouldResetLock) {
-      setLockOwner(null);
-      setLockExpirationTime(null);
-    }
+    init(commandContext, false, true);
   }
 
   @Override

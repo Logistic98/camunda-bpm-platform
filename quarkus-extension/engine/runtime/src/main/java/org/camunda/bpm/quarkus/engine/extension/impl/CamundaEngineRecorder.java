@@ -19,10 +19,6 @@ package org.camunda.bpm.quarkus.engine.extension.impl;
 import static com.arjuna.ats.jta.TransactionManager.transactionManager;
 import static io.quarkus.datasource.common.runtime.DataSourceUtil.DEFAULT_DATASOURCE_NAME;
 
-import javax.enterprise.inject.spi.BeanManager;
-import java.util.ArrayList;
-import java.util.List;
-
 import io.quarkus.agroal.runtime.DataSources;
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.runtime.BeanContainer;
@@ -30,6 +26,9 @@ import io.quarkus.runtime.RuntimeValue;
 import io.quarkus.runtime.ShutdownContext;
 import io.quarkus.runtime.annotations.Recorder;
 import io.smallrye.context.SmallRyeManagedExecutor;
+import jakarta.enterprise.inject.spi.BeanManager;
+import java.util.ArrayList;
+import java.util.List;
 import org.camunda.bpm.container.RuntimeContainerDelegate;
 import org.camunda.bpm.container.impl.metadata.PropertyHelper;
 import org.camunda.bpm.engine.ProcessEngine;
@@ -49,19 +48,21 @@ public class CamundaEngineRecorder {
   public void configureProcessEngineCdiBeans(BeanContainer beanContainer) {
 
     if (BeanManagerLookup.localInstance == null) {
-      BeanManagerLookup.localInstance = beanContainer.instance(BeanManager.class);
+      BeanManagerLookup.localInstance = getBeanFromContainer(BeanManager.class, beanContainer);
     }
   }
 
   public RuntimeValue<ProcessEngineConfigurationImpl> createProcessEngineConfiguration(BeanContainer beanContainer,
                                                                                        CamundaEngineConfig config) {
-    QuarkusProcessEngineConfiguration configuration = beanContainer.instance(QuarkusProcessEngineConfiguration.class);
+
+    QuarkusProcessEngineConfiguration configuration = getBeanFromContainer(QuarkusProcessEngineConfiguration.class,
+        beanContainer);
 
     // apply properties from config before any other configuration.
-    PropertyHelper.applyProperties(configuration, config.genericConfig, PropertyHelper.KEBAB_CASE);
+    PropertyHelper.applyProperties(configuration, config.genericConfig(), PropertyHelper.KEBAB_CASE);
 
     if (configuration.getDataSource() == null) {
-      String datasource = config.datasource.orElse(DEFAULT_DATASOURCE_NAME);
+      String datasource = config.datasource().orElse(DEFAULT_DATASOURCE_NAME);
       configuration.setDataSource(DataSources.fromName(datasource));
     }
 
@@ -137,8 +138,8 @@ public class CamundaEngineRecorder {
   protected void configureJobExecutor(ProcessEngineConfigurationImpl configuration,
                                       CamundaEngineConfig config) {
 
-    int maxPoolSize = config.jobExecutor.threadPool.maxPoolSize;
-    int queueSize = config.jobExecutor.threadPool.queueSize;
+    int maxPoolSize = config.jobExecutor().threadPool().maxPoolSize();
+    int queueSize = config.jobExecutor().threadPool().queueSize();
 
     // create a non-bean ManagedExecutor instance. This instance
     // uses it's own Executor/thread pool.
@@ -151,8 +152,22 @@ public class CamundaEngineRecorder {
 
     // apply job executor configuration properties
     PropertyHelper
-        .applyProperties(quarkusJobExecutor, config.jobExecutor.genericConfig, PropertyHelper.KEBAB_CASE);
+        .applyProperties(quarkusJobExecutor, config.jobExecutor().genericConfig(), PropertyHelper.KEBAB_CASE);
 
     configuration.setJobExecutor(quarkusJobExecutor);
+  }
+
+  /**
+   * Retrieves a bean of the given class from the bean container.
+   *
+   * @param beanClass     the class of the desired bean to fetch from the container
+   * @param beanContainer the bean container
+   * @param <T>           the type of the bean to fetch
+   * @return the bean
+   */
+  protected <T> T getBeanFromContainer(Class<T> beanClass, BeanContainer beanContainer) {
+    try (BeanContainer.Instance<T> beanManager = beanContainer.beanInstanceFactory(beanClass).create()) {
+      return beanManager.get();
+    }
   }
 }

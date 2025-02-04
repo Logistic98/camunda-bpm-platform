@@ -11,7 +11,7 @@
     <groupId>org.camunda.bpm</groupId>
     <artifactId>camunda-database-settings</artifactId>
     <relativePath>../database</relativePath>
-    <version>7.20.0-SNAPSHOT</version>
+    <version>7.23.0-SNAPSHOT</version>
   </parent>
 
   <properties>
@@ -45,6 +45,7 @@
     <tomcat.server.port>48005</tomcat.server.port>
 
     <tomcat.runtime.location>../tomcat-runtime/target/server/apache-tomcat-${version.tomcat}</tomcat.runtime.location>
+    <tomcat9.runtime.location>../tomcat9-runtime/target/server/apache-tomcat-${version.tomcat9}</tomcat9.runtime.location>
 
   </properties>
 
@@ -75,19 +76,25 @@
         <module>wildfly-runtime</module>
         <module>wildfly26-runtime</module>
         <module>tomcat-runtime</module>
-        <module>vanilla-runtimes/tomcat</module>
-        <module>vanilla-runtimes/wildfly</module>
-        <module>vanilla-runtimes/wildfly26</module>
+        <module>tomcat9-runtime</module>
         <module>integration-tests-webapps</module>
         <module>integration-tests-engine</module>
-        <module>integration-tests-engine-jakarta</module>
-        <module>test-db-upgrade</module>
         <module>test-db-util</module>
         <module>test-db-instance-migration</module>
         <module>test-db-rolling-update</module>
         <module>test-old-engine</module>
         <module>performance-tests-engine</module>
         <module>large-data-tests</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>jdk17</id>
+      <activation>
+        <jdk>[17,)</jdk>
+      </activation>
+      <modules>
+        <module>integration-tests-engine-jakarta</module>
       </modules>
     </profile>
 
@@ -120,30 +127,16 @@
     </profile>
 
     <profile>
+      <id>tomcat9</id>
+      <modules>
+        <module>tomcat9-runtime</module>
+      </modules>
+    </profile>
+
+    <profile>
       <id>tomcat</id>
       <modules>
         <module>tomcat-runtime</module>
-      </modules>
-    </profile>
-
-    <profile>
-      <id>tomcat-vanilla</id>
-      <modules>
-        <module>vanilla-runtimes/tomcat</module>
-      </modules>
-    </profile>
-
-    <profile>
-      <id>wildfly-vanilla</id>
-      <modules>
-        <module>vanilla-runtimes/wildfly</module>
-      </modules>
-    </profile>
-    
-    <profile>
-      <id>wildfly26-vanilla</id>
-      <modules>
-        <module>vanilla-runtimes/wildfly26</module>
       </modules>
     </profile>
 
@@ -151,13 +144,6 @@
 
     <profile>
       <id>webapps-integration</id>
-      <modules>
-        <module>integration-tests-webapps</module>
-      </modules>
-    </profile>
-
-    <profile>
-      <id>webapps-integration-sa</id>
       <modules>
         <module>integration-tests-webapps</module>
       </modules>
@@ -174,13 +160,6 @@
       <id>engine-integration-jakarta</id>
       <modules>
         <module>integration-tests-engine-jakarta</module>
-      </modules>
-    </profile>
-
-    <profile>
-      <id>upgrade-db</id>
-      <modules>
-        <module>test-db-upgrade</module>
       </modules>
     </profile>
 

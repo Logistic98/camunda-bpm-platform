@@ -26,7 +26,6 @@
 
     <!-- turn off metrics reporter -->
     <property name="dbMetricsReporterActivate" value="false" />
-    <property name="telemetryReporterActivate" value="false" />
     <property name="taskMetricsEnabled" value="false" />
 
     <!-- mail server configurations -->
@@ -39,6 +38,7 @@
 
     <property name="historyCleanupBatchWindowStartTime" value="16:00" />
     <property name="historyCleanupDegreeOfParallelism" value="8" />
+    <property name="enforceHistoryTimeToLive" value="false" />
 
   </bean>
 

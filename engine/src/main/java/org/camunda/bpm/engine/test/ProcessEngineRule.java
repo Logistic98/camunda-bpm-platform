@@ -20,7 +20,6 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-
 import org.camunda.bpm.engine.AuthorizationService;
 import org.camunda.bpm.engine.CaseService;
 import org.camunda.bpm.engine.DecisionService;
@@ -37,7 +36,7 @@ import org.camunda.bpm.engine.RuntimeService;
 import org.camunda.bpm.engine.TaskService;
 import org.camunda.bpm.engine.impl.ProcessEngineImpl;
 import org.camunda.bpm.engine.impl.cfg.ProcessEngineConfigurationImpl;
-import org.camunda.bpm.engine.impl.telemetry.PlatformTelemetryRegistry;
+import org.camunda.bpm.engine.impl.diagnostics.PlatformDiagnosticsRegistry;
 import org.camunda.bpm.engine.impl.test.RequiredDatabase;
 import org.camunda.bpm.engine.impl.test.TestHelper;
 import org.camunda.bpm.engine.impl.util.ClockUtil;
@@ -153,7 +152,14 @@ public class ProcessEngineRule extends TestWatcher implements ProcessEngineServi
 
   @Override
   public void starting(Description description) {
-    deploymentId = TestHelper.annotationDeploymentSetUp(processEngine, description.getTestClass(), description.getMethodName(),
+    String methodName = description.getMethodName();
+    if (methodName != null) {
+      // cut off method variant suffix "[variant name]" for parameterized tests
+      int methodNameVariantStart = description.getMethodName().indexOf('[');
+      int methodNameEnd = methodNameVariantStart < 0 ? description.getMethodName().length() : methodNameVariantStart;
+      methodName = description.getMethodName().substring(0, methodNameEnd);
+    }
+    deploymentId = TestHelper.annotationDeploymentSetUp(processEngine, description.getTestClass(), methodName,
         description.getAnnotation(Deployment.class));
   }
 
@@ -251,7 +257,7 @@ public class ProcessEngineRule extends TestWatcher implements ProcessEngineServi
 
     clearServiceReferences();
 
-    PlatformTelemetryRegistry.clear();
+    PlatformDiagnosticsRegistry.clear();
   }
 
   public void setCurrentTime(Date currentTime) {

@@ -41,9 +41,6 @@ insert into ACT_GE_PROPERTY
 values ('startup.lock', '0', 1);
 
 insert into ACT_GE_PROPERTY
-values ('telemetry.lock', '0', 1);
-
-insert into ACT_GE_PROPERTY
 values ('installationId.lock', '0', 1);
 
 create table ACT_GE_BYTEARRAY (
@@ -69,7 +66,7 @@ create table ACT_GE_SCHEMA_LOG (
 );
 
 insert into ACT_GE_SCHEMA_LOG
-values ('0', CURRENT_TIMESTAMP, '7.20.0');
+values ('0', CURRENT_TIMESTAMP, '7.23.0');
 
 create table ACT_RE_DEPLOYMENT (
     ID_ nvarchar(64),
@@ -101,6 +98,7 @@ create table ACT_RU_EXECUTION (
     CACHED_ENT_STATE_ int,
     SEQUENCE_COUNTER_ numeric(19,0),
     TENANT_ID_ nvarchar(64),
+    PROC_DEF_KEY_ nvarchar(255),
     primary key (ID_)
 );
 
@@ -112,6 +110,7 @@ create table ACT_RU_JOB (
     LOCK_OWNER_ nvarchar(255),
     EXCLUSIVE_ bit,
     EXECUTION_ID_ nvarchar(64),
+    ROOT_PROC_INST_ID_ nvarchar(64),
     PROCESS_INSTANCE_ID_ nvarchar(64),
     PROCESS_DEF_ID_ nvarchar(64),
     PROCESS_DEF_KEY_ nvarchar(255),
@@ -132,6 +131,7 @@ create table ACT_RU_JOB (
     TENANT_ID_ nvarchar(64),
     CREATE_TIME_ datetime2,
     LAST_FAILURE_LOG_ID_ nvarchar(64),
+    BATCH_ID_ nvarchar(64),
     primary key (ID_)
 );
 
@@ -203,6 +203,7 @@ create table ACT_RU_TASK (
     FOLLOW_UP_DATE_ datetime2,
     SUSPENSION_STATE_ int,
     TENANT_ID_ nvarchar(64),
+    TASK_STATE_ nvarchar(64),
     primary key (ID_)
 );
 
@@ -327,6 +328,7 @@ create table ACT_RU_EXT_TASK (
   ERROR_MSG_ nvarchar(4000),
   ERROR_DETAILS_ID_ nvarchar(64),
   LOCK_EXP_TIME_ datetime2,
+  CREATE_TIME_ datetime2,
   SUSPENSION_STATE_ tinyint,
   EXECUTION_ID_ nvarchar(64),
   PROC_INST_ID_ nvarchar(64),
@@ -368,6 +370,7 @@ create index ACT_IDX_TASK_LAST_UPDATED on ACT_RU_TASK(LAST_UPDATED_);
 create index ACT_IDX_TASK_ASSIGNEE on ACT_RU_TASK(ASSIGNEE_);
 create index ACT_IDX_TASK_OWNER on ACT_RU_TASK(OWNER_);
 create index ACT_IDX_TASK_TENANT_ID on ACT_RU_TASK(TENANT_ID_);
+create index ACT_IDX_TASK_PARENT_TASK_ID on ACT_RU_TASK(PARENT_TASK_ID_);
 create index ACT_IDX_IDENT_LNK_USER on ACT_RU_IDENTITYLINK(USER_ID_);
 create index ACT_IDX_IDENT_LNK_GROUP on ACT_RU_IDENTITYLINK(GROUP_ID_);
 create index ACT_IDX_EVENT_SUBSCR_CONFIG_ on ACT_RU_EVENT_SUBSCR(CONFIGURATION_);
@@ -383,6 +386,7 @@ create index ACT_IDX_INC_TENANT_ID on ACT_RU_INCIDENT(TENANT_ID_);
 -- CAM-5914
 create index ACT_IDX_JOB_EXECUTION_ID on ACT_RU_JOB(EXECUTION_ID_);
 create index ACT_IDX_JOB_PROCINST on ACT_RU_JOB(PROCESS_INSTANCE_ID_);
+create index ACT_IDX_JOB_ROOT_PROCINST on ACT_RU_JOB(ROOT_PROC_INST_ID_);
 create index ACT_IDX_JOB_TENANT_ID on ACT_RU_JOB(TENANT_ID_);
 create index ACT_IDX_JOBDEF_TENANT_ID on ACT_RU_JOBDEF(TENANT_ID_);
 create unique index ACT_UNIQ_AUTH_USER on ACT_RU_AUTHORIZATION (TYPE_,USER_ID_,RESOURCE_TYPE_,RESOURCE_ID_) where USER_ID_ is not null;

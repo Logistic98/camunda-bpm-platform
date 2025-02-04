@@ -16,19 +16,24 @@
  */
 package org.camunda.bpm.container.impl.jboss.extension.handler;
 
+import java.util.List;
+import java.util.function.Consumer;
+
 import org.camunda.bpm.container.impl.jboss.extension.SubsystemAttributeDefinitons;
 import org.camunda.bpm.container.impl.jboss.service.MscRuntimeContainerJobExecutor;
 import org.camunda.bpm.container.impl.jboss.service.ServiceNames;
 import org.camunda.bpm.container.impl.metadata.PropertyHelper;
 import org.camunda.bpm.engine.impl.jobexecutor.RuntimeContainerJobExecutor;
-import org.jboss.as.controller.*;
+import org.jboss.as.controller.AbstractAddStepHandler;
+import org.jboss.as.controller.OperationContext;
+import org.jboss.as.controller.OperationFailedException;
+import org.jboss.as.controller.PathAddress;
 import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
 import org.jboss.dmr.ModelNode;
 import org.jboss.dmr.Property;
-import org.jboss.msc.service.ServiceController;
+import org.jboss.msc.service.ServiceBuilder;
 import org.jboss.msc.service.ServiceController.Mode;
-
-import java.util.List;
+import org.jboss.msc.service.ServiceName;
 
 
 /**
@@ -40,7 +45,7 @@ public class JobAcquisitionAdd extends AbstractAddStepHandler {
 
   public static final JobAcquisitionAdd INSTANCE = new JobAcquisitionAdd();
 
-  private JobAcquisitionAdd() {
+  protected JobAcquisitionAdd() {
     super(SubsystemAttributeDefinitons.JOB_ACQUISITION_ATTRIBUTES);
   }
 
@@ -49,7 +54,13 @@ public class JobAcquisitionAdd extends AbstractAddStepHandler {
 
     String acquisitionName = PathAddress.pathAddress(operation.get(ModelDescriptionConstants.ADDRESS)).getLastElement().getValue();
 
-    MscRuntimeContainerJobExecutor mscRuntimeContainerJobExecutor = new MscRuntimeContainerJobExecutor();
+    // start new service for job executor
+    ServiceName serviceName = ServiceNames.forMscRuntimeContainerJobExecutorService(acquisitionName);
+    ServiceBuilder<?> serviceBuilder = context.getServiceTarget().addService(serviceName);
+    serviceBuilder.requires(ServiceNames.forMscRuntimeContainerDelegate());
+    serviceBuilder.requires(ServiceNames.forMscExecutorService());
+    Consumer<RuntimeContainerJobExecutor> provider = serviceBuilder.provides(serviceName);
+    MscRuntimeContainerJobExecutor mscRuntimeContainerJobExecutor = new MscRuntimeContainerJobExecutor(provider);
 
     if (model.hasDefined(SubsystemAttributeDefinitons.PROPERTIES.getName())) {
       List<Property> properties = SubsystemAttributeDefinitons.PROPERTIES.resolveModelAttribute(context, model).asPropertyList();
@@ -58,12 +69,9 @@ public class JobAcquisitionAdd extends AbstractAddStepHandler {
       }
     }
 
-    // start new service for job executor
-    ServiceController<RuntimeContainerJobExecutor> serviceController = context.getServiceTarget().addService(ServiceNames.forMscRuntimeContainerJobExecutorService(acquisitionName), mscRuntimeContainerJobExecutor)
-      .addDependency(ServiceNames.forMscRuntimeContainerDelegate())
-      .addDependency(ServiceNames.forMscExecutorService())
-      .setInitialMode(Mode.ACTIVE)
-      .install();
+    serviceBuilder.setInitialMode(Mode.ACTIVE);
+    serviceBuilder.setInstance(mscRuntimeContainerJobExecutor);
+    serviceBuilder.install();
   }
 
 }

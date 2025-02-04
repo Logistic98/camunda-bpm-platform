@@ -19,11 +19,13 @@ package org.camunda.bpm.engine.impl.dmn.transformer;
 import org.camunda.bpm.dmn.engine.impl.DmnDecisionImpl;
 import org.camunda.bpm.dmn.engine.impl.spi.transform.DmnElementTransformContext;
 import org.camunda.bpm.dmn.engine.impl.transform.DmnDecisionTransformHandler;
+import org.camunda.bpm.engine.impl.HistoryTimeToLiveParser;
 import org.camunda.bpm.engine.impl.dmn.entity.repository.DecisionDefinitionEntity;
-import org.camunda.bpm.engine.impl.util.ParseUtil;
 import org.camunda.bpm.model.dmn.instance.Decision;
 
 public class DecisionDefinitionHandler extends DmnDecisionTransformHandler {
+
+  protected boolean skipEnforceTtl = false;
 
   @Override
   protected DmnDecisionImpl createDmnElement() {
@@ -33,13 +35,26 @@ public class DecisionDefinitionHandler extends DmnDecisionTransformHandler {
   @Override
   protected DmnDecisionImpl createFromDecision(DmnElementTransformContext context, Decision decision) {
     DecisionDefinitionEntity decisionDefinition = (DecisionDefinitionEntity) super.createFromDecision(context, decision);
-
     String category = context.getModelInstance().getDefinitions().getNamespace();
+
     decisionDefinition.setCategory(category);
-    decisionDefinition.setHistoryTimeToLive(ParseUtil.parseHistoryTimeToLive(decision.getCamundaHistoryTimeToLiveString()));
     decisionDefinition.setVersionTag(decision.getVersionTag());
+
+    validateAndSetHTTL(decision, decisionDefinition, isSkipEnforceTtl());
 
     return decisionDefinition;
   }
 
+  protected void validateAndSetHTTL(Decision decision, DecisionDefinitionEntity decisionDefinition, boolean skipEnforceTtl) {
+    Integer historyTimeToLive = HistoryTimeToLiveParser.create().parse(decision, decisionDefinition.getKey(), skipEnforceTtl);
+    decisionDefinition.setHistoryTimeToLive(historyTimeToLive);
+  }
+
+  public boolean isSkipEnforceTtl() {
+    return skipEnforceTtl;
+  }
+
+  public void setSkipEnforceTtl(boolean skipEnforceTtl) {
+    this.skipEnforceTtl = skipEnforceTtl;
+  }
 }

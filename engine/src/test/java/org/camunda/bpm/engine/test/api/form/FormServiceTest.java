@@ -288,7 +288,7 @@ public class FormServiceTest {
     Map<String, Object> expectedVariables = new HashMap<>();
     expectedVariables.put("room", "5b");
     expectedVariables.put("SpeakerName", "Mike");
-    expectedVariables.put("duration", new Long(45));
+    expectedVariables.put("duration", 45L);
     expectedVariables.put("free", Boolean.TRUE);
 
     Map<String, Object> variables = runtimeService.getVariables(processInstanceId);
@@ -347,7 +347,7 @@ public class FormServiceTest {
     expectedVariables = new HashMap<>();
     expectedVariables.put("room", "5b");
     expectedVariables.put("SpeakerName", "Mike");
-    expectedVariables.put("duration", new Long(45));
+    expectedVariables.put("duration", 45L);
     expectedVariables.put("free", Boolean.TRUE);
 
     variables = runtimeService.getVariables(processInstanceId);
@@ -371,7 +371,7 @@ public class FormServiceTest {
     Map<String, Object> expectedVariables = new HashMap<>();
     expectedVariables.put("room", "5b");
     expectedVariables.put("SpeakerName", "Mike");
-    expectedVariables.put("duration", new Long(45));
+    expectedVariables.put("duration", 45L);
     expectedVariables.put("free", Boolean.TRUE);
 
     Map<String, Object> variables = runtimeService.getVariables(processInstanceId);
@@ -430,7 +430,7 @@ public class FormServiceTest {
     expectedVariables = new HashMap<>();
     expectedVariables.put("room", "5b");
     expectedVariables.put("SpeakerName", "Mike");
-    expectedVariables.put("duration", new Long(45));
+    expectedVariables.put("duration", 45L);
     expectedVariables.put("free", Boolean.TRUE);
 
     variables = runtimeService.getVariables(processInstanceId);
@@ -664,11 +664,12 @@ public class FormServiceTest {
   public void testSubmitStartFormWithExecutionListenerOnStartEvent() {
     // given
     BpmnModelInstance modelInstance = Bpmn.createExecutableProcess()
-      .startEvent()
+        .camundaHistoryTimeToLive(180)
+        .startEvent()
         .camundaExecutionListenerClass(ExecutionListener.EVENTNAME_START, VariablesRecordingListener.class)
         .camundaExecutionListenerClass(ExecutionListener.EVENTNAME_END, VariablesRecordingListener.class)
-      .endEvent()
-      .done();
+        .endEvent()
+        .done();
 
     testRule.deploy(modelInstance);
     ProcessDefinition procDef = repositoryService.createProcessDefinitionQuery().singleResult();
@@ -691,9 +692,10 @@ public class FormServiceTest {
   public void testSubmitStartFormWithAsyncStartEvent() {
     // given
     BpmnModelInstance modelInstance = Bpmn.createExecutableProcess()
-      .startEvent().camundaAsyncBefore()
-      .endEvent()
-      .done();
+        .camundaHistoryTimeToLive(180)
+        .startEvent().camundaAsyncBefore()
+        .endEvent()
+        .done();
 
     testRule.deploy(modelInstance);
     ProcessDefinition procDef = repositoryService.createProcessDefinitionQuery().singleResult();
@@ -718,10 +720,12 @@ public class FormServiceTest {
   public void testSubmitStartFormWithAsyncStartEventExecuteJob() {
     // given
     BpmnModelInstance modelInstance = Bpmn.createExecutableProcess()
-      .startEvent().camundaAsyncBefore()
-      .userTask()
-      .endEvent()
-      .done();
+        .camundaHistoryTimeToLive(180)
+        .startEvent()
+        .camundaAsyncBefore()
+        .userTask()
+        .endEvent()
+        .done();
 
     testRule.deploy(modelInstance);
     ProcessDefinition procDef = repositoryService.createProcessDefinitionQuery().singleResult();
@@ -1178,16 +1182,17 @@ public class FormServiceTest {
   {
     // given
     BpmnModelInstance process = Bpmn.createExecutableProcess("process")
-      .startEvent()
-      .subProcess()
-      .embeddedSubProcess()
-      .startEvent()
-      .userTask("task1")
-      .userTask("task2")
-      .endEvent()
-      .subProcessDone()
-      .endEvent()
-      .done();
+        .camundaHistoryTimeToLive(180)
+        .startEvent()
+        .subProcess()
+        .embeddedSubProcess()
+        .startEvent()
+        .userTask("task1")
+        .userTask("task2")
+        .endEvent()
+        .subProcessDone()
+        .endEvent()
+        .done();
 
     testRule.deploy(process);
 

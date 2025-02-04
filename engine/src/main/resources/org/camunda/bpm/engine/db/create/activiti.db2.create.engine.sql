@@ -41,9 +41,6 @@ insert into ACT_GE_PROPERTY
 values ('startup.lock', '0', 1);
 
 insert into ACT_GE_PROPERTY
-values ('telemetry.lock', '0', 1);
-
-insert into ACT_GE_PROPERTY
 values ('installationId.lock', '0', 1);
 
 create table ACT_GE_BYTEARRAY (
@@ -69,7 +66,7 @@ create table ACT_GE_SCHEMA_LOG (
 );
 
 insert into ACT_GE_SCHEMA_LOG
-values ('0', CURRENT_TIMESTAMP, '7.20.0');
+values ('0', CURRENT_TIMESTAMP, '7.23.0');
 
 create table ACT_RE_DEPLOYMENT (
     ID_ varchar(64) not null,
@@ -101,6 +98,7 @@ create table ACT_RU_EXECUTION (
     CACHED_ENT_STATE_ integer,
     SEQUENCE_COUNTER_ bigint,
     TENANT_ID_ varchar(64),
+    PROC_DEF_KEY_ varchar(255),
     primary key (ID_)
 );
 
@@ -112,6 +110,7 @@ create table ACT_RU_JOB (
     LOCK_OWNER_ varchar(255),
     EXCLUSIVE_ smallint check(EXCLUSIVE_ in (1,0)),
     EXECUTION_ID_ varchar(64),
+    ROOT_PROC_INST_ID_ varchar(64),
     PROCESS_INSTANCE_ID_ varchar(64),
     PROCESS_DEF_ID_ varchar(64),
     PROCESS_DEF_KEY_ varchar(255),
@@ -132,6 +131,7 @@ create table ACT_RU_JOB (
     TENANT_ID_ varchar(64),
     CREATE_TIME_ timestamp,
     LAST_FAILURE_LOG_ID_ varchar(64),
+    BATCH_ID_ varchar(64),
     primary key (ID_)
 );
 
@@ -203,6 +203,7 @@ create table ACT_RU_TASK (
     FOLLOW_UP_DATE_ timestamp,
     SUSPENSION_STATE_ integer,
     TENANT_ID_ varchar(64),
+    TASK_STATE_ varchar(64),
     primary key (ID_)
 );
 
@@ -330,6 +331,7 @@ create table ACT_RU_EXT_TASK (
   ERROR_MSG_ varchar(4000),
   ERROR_DETAILS_ID_ varchar(64),
   LOCK_EXP_TIME_ timestamp,
+  CREATE_TIME_ timestamp,
   SUSPENSION_STATE_ integer,
   EXECUTION_ID_ varchar(64),
   PROC_INST_ID_ varchar(64),
@@ -386,6 +388,7 @@ create index ACT_IDX_INC_TENANT_ID on ACT_RU_INCIDENT(TENANT_ID_);
 -- CAM-5914
 create index ACT_IDX_JOB_EXECUTION_ID on ACT_RU_JOB(EXECUTION_ID_);
 create index ACT_IDX_JOB_PROCINST on ACT_RU_JOB(PROCESS_INSTANCE_ID_);
+create index ACT_IDX_JOB_ROOT_PROCINST on ACT_RU_JOB(ROOT_PROC_INST_ID_);
 create index ACT_IDX_JOB_TENANT_ID on ACT_RU_JOB(TENANT_ID_);
 create index ACT_IDX_JOBDEF_TENANT_ID on ACT_RU_JOBDEF(TENANT_ID_);
 

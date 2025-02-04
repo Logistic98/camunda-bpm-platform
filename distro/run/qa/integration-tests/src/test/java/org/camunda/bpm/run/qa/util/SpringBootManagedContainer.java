@@ -21,7 +21,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -32,13 +31,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.sun.jna.Pointer;
-import com.sun.jna.platform.win32.Kernel32;
-import com.sun.jna.platform.win32.WinNT;
 
 /**
  * Container that handles a managed Spring Boot application that is started by
@@ -48,11 +42,12 @@ public class SpringBootManagedContainer {
 
   public static final String APPLICATION_YML_PATH = "configuration/default.yml";
   public static final String RESOURCES_PATH = "configuration/resources";
+  public static final String USERLIB_PATH = "configuration/userlib";
 
   protected static final String BASE_TEST_APPLICATION_YML = "base-test-application.yml";
   protected static final String RUN_HOME_VARIABLE = "camunda.run.home";
 
-  protected static final long RAMP_UP_SECONDS = 40;
+  protected static final long RAMP_UP_SECONDS = 60;
   protected static final long RAMP_DOWN_SECONDS = 20;
 
   protected static final Logger log = LoggerFactory.getLogger(SpringBootManagedContainer.class.getName());
@@ -63,6 +58,7 @@ public class SpringBootManagedContainer {
 
   protected Thread shutdownThread;
   protected Process startupProcess;
+  protected static long pid;
 
   protected List<File> configurationFiles = new ArrayList<>();
 
@@ -106,18 +102,18 @@ public class SpringBootManagedContainer {
       startupProcessBuilder.directory(new File(baseDirectory));
       log.info("Starting Spring Boot application with: " + startupProcessBuilder.command());
       startupProcess = startupProcessBuilder.start();
+      pid = startupProcess.pid();
       new Thread(new ConsoleConsumer()).start();
-      final Process proc = startupProcess;
 
       shutdownThread = new Thread(() -> {
-        if (proc != null) {
-          killProcess(proc, true);
+        if (startupProcess != null) {
+          killProcess( true);
         }
       });
       Runtime.getRuntime().addShutdownHook(shutdownThread);
 
       if (!isStarted(RAMP_UP_SECONDS * 1000)) {
-        killProcess(startupProcess, false);
+        killProcess(false);
         throw new TimeoutException(String.format("Managed Spring Boot application was not started within [%d] s", RAMP_UP_SECONDS));
       }
     } catch (final Exception ex) {
@@ -134,7 +130,7 @@ public class SpringBootManagedContainer {
     try {
       if (startupProcess != null) {
         if (isRunning()) {
-          killProcess(startupProcess, false);
+          killProcess(false);
           if (!isShutDown(RAMP_DOWN_SECONDS * 1000)) {
             throw new RuntimeException("Could not kill the application.");
           }
@@ -208,18 +204,15 @@ public class SpringBootManagedContainer {
   // kill processes
   // ---------------------------
 
-  protected static void killProcess(Process process, boolean failOnException) {
+  protected static void killProcess(boolean failOnException) {
     try {
       Process p = null;
-      Integer pid = null;
 
       // must kill a hierachy of processes: the script process (which corresponds to the pid value)
       // and the Java process it has spawned
       if (isUnixLike()) {
-        pid = unixLikeProcessId(process);
         p = new ProcessBuilder("pkill", "-TERM", "-P", String.valueOf(pid)).start();
       } else {
-        pid = windowsProcessId(process);
         p = new ProcessBuilder("taskkill", "/F", "/T", "/pid", String.valueOf(pid)).start();
       }
       int exitCode = p.waitFor();
@@ -227,7 +220,7 @@ public class SpringBootManagedContainer {
         log.warn("Attempt to terminate process with pid {} returned with exit code {}", pid, exitCode);
       }
     } catch (Exception e) {
-      String message = String.format("Couldn't kill process %s", process);
+      String message = String.format("Couldn't kill process %s", pid);
       if (failOnException) {
         throw new RuntimeException(message, e);
       } else {
@@ -238,45 +231,6 @@ public class SpringBootManagedContainer {
 
   protected static boolean isUnixLike() {
     return !System.getProperty("os.name").startsWith("Windows", 0);
-  }
-
-  protected static Integer unixLikeProcessId(Process process) {
-    Class<?> clazz = process.getClass();
-    try {
-      if (clazz.getName().equals("java.lang.UNIXProcess")) {
-        Field pidField = clazz.getDeclaredField("pid");
-        pidField.setAccessible(true);
-        Object value = pidField.get(process);
-        if (value instanceof Integer) {
-          log.debug("Detected pid: {}", value);
-          return (Integer) value;
-        }
-      }
-    } catch (SecurityException | IllegalAccessException | IllegalArgumentException | NoSuchFieldException ex) {
-      throw new RuntimeException("Cannot fetch unix pid!", ex);
-    }
-    return null;
-  }
-
-  protected static Integer windowsProcessId(Process process) {
-    if (process.getClass().getName().equals("java.lang.Win32Process") || process.getClass().getName().equals("java.lang.ProcessImpl")) {
-      /* determine the pid on windows plattforms */
-      try {
-        Field f = process.getClass().getDeclaredField("handle");
-        f.setAccessible(true);
-        long handl = f.getLong(process);
-
-        Kernel32 kernel = Kernel32.INSTANCE;
-        WinNT.HANDLE handle = new WinNT.HANDLE();
-        handle.setPointer(Pointer.createConstant(handl));
-        int ret = kernel.GetProcessId(handle);
-        log.debug("Detected pid: {}", ret);
-        return ret;
-      } catch (Throwable ex) {
-        throw new RuntimeException("Cannot fetch windows pid!", ex);
-      }
-    }
-    return null;
   }
 
   public void replaceConfigurationYml(String filePath, InputStream source) {

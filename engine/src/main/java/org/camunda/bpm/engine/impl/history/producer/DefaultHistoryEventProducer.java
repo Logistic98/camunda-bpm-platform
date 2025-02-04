@@ -204,6 +204,7 @@ public class DefaultHistoryEventProducer implements HistoryEventProducer {
     evt.setCaseInstanceId(caseInstanceId);
     evt.setTenantId(tenantId);
     evt.setRootProcessInstanceId(execution.getRootProcessInstanceId());
+    evt.setRestartedProcessInstanceId(execution.getRestartedProcessInstanceId());
 
     if (execution.getSuperCaseExecution() != null) {
       evt.setSuperCaseInstanceId(execution.getSuperCaseExecution().getCaseInstanceId());
@@ -260,6 +261,10 @@ public class DefaultHistoryEventProducer implements HistoryEventProducer {
     evt.setPriority(taskEntity.getPriority());
     evt.setTaskDefinitionKey(taskEntity.getTaskDefinitionKey());
     evt.setTenantId(tenantId);
+    /**
+     * Sets task State for the task
+     */
+    evt.setTaskState(taskEntity.getTaskState());
 
     ExecutionEntity execution = taskEntity.getExecution();
     if (execution != null) {
@@ -1090,11 +1095,9 @@ public class DefaultHistoryEventProducer implements HistoryEventProducer {
       byte[] exceptionBytes = toByteArray(exceptionStacktrace);
 
       ByteArrayEntity byteArray = createJobExceptionByteArray(exceptionBytes, ResourceTypes.HISTORY);
-      byteArray.setRootProcessInstanceId(event.getRootProcessInstanceId());
 
-      if (isHistoryRemovalTimeStrategyStart()) {
-        byteArray.setRemovalTime(event.getRemovalTime());
-      }
+      byteArray.setRootProcessInstanceId(event.getRootProcessInstanceId());
+      byteArray.setRemovalTime(event.getRemovalTime());
 
       event.setExceptionByteArrayId(byteArray.getId());
     }
@@ -1122,6 +1125,7 @@ public class DefaultHistoryEventProducer implements HistoryEventProducer {
 
     JobEntity jobEntity = (JobEntity) job;
     evt.setJobId(jobEntity.getId());
+    evt.setBatchId(jobEntity.getBatchId());
     evt.setJobDueDate(jobEntity.getDuedate());
     evt.setJobRetries(jobEntity.getRetries());
     evt.setJobPriority(jobEntity.getPriority());
@@ -1228,7 +1232,8 @@ public class DefaultHistoryEventProducer implements HistoryEventProducer {
 
   protected HistoricExternalTaskLogEntity initHistoricExternalTaskLog(ExternalTaskEntity entity, ExternalTaskState state) {
     HistoricExternalTaskLogEntity event = new HistoricExternalTaskLogEntity();
-    event.setTimestamp(ClockUtil.getCurrentTime());
+
+    event.setTimestamp(getTimestamp(entity, state));
     event.setExternalTaskId(entity.getId());
     event.setTopicName(entity.getTopicName());
     event.setWorkerId(entity.getWorkerId());
@@ -1256,6 +1261,10 @@ public class DefaultHistoryEventProducer implements HistoryEventProducer {
     }
 
     return event;
+  }
+
+  protected Date getTimestamp(ExternalTaskEntity entity, ExternalTaskState state) {
+    return state == ExternalTaskState.CREATED ? entity.getCreateTime() : ClockUtil.getCurrentTime();
   }
 
   protected boolean isRootProcessInstance(HistoricProcessInstanceEventEntity evt) {

@@ -51,7 +51,7 @@ Contains resources like images, [`.less`](http://lesscss.org) stylesheets as wel
 
 ### Prerequisite
 
-You need [node.js](http://nodejs.org) and npm. You will also need to install [grunt](http://gruntjs.com) globally using `npm install -g grunt-cli`.
+You need [node.js](http://nodejs.org) >= 17 and npm.
 
 ### Setup
 
@@ -59,16 +59,16 @@ You need [node.js](http://nodejs.org) and npm. You will also need to install [gr
 
 See https://github.com/camunda/camunda-bpm-platform/blob/master/CONTRIBUTING.md#build-from-source
 
-#### Using Grunt
+#### Using Webpack
 
-Installing the webapps is done by Grunt:
+Build the web apps using Webpack:
 
 ```sh
 # cd <path to your workspace>
 git clone git@github.com:camunda/camunda-bpm-platform.git
 cd camunda-bpm-platform/webapps/frontend
 npm install
-grunt
+npm start
 ```
 
 To start the server in development mode, call
@@ -77,11 +77,10 @@ To start the server in development mode, call
 cd camunda-bpm-platform/webapps/assembly
 mvn jetty:run -Pdevelop
 ```
+
 The webapps are then available pointing a browser at [http://localhost:8080](http://localhost:8080). To login as an admin user, use `jonny1` as username and password.
 
-You can now start developing using the `grunt auto-build` command in the frontend directory. To shorten compile times, you can specify the project you are going to make changes to by calling `grunt auto-build:admin`
-
-If you are only changing Javascript files, you can set the environment variable `FAST_BUILD` to 1 to further improve compile times.
+You can now start developing using the `npm run start` command in the frontend directory.
 
 ##### Jakarta Webapps
 
@@ -90,70 +89,51 @@ In order to run the Jakarta Webapps start Jetty the same way from the `assembly-
 ```sh
 cd camunda-bpm-platform/webapps/assembly
 mvn jetty:run -Pdevelop
+npm run start
 ```
 
-And start Grunt with an additional `--assembly-jakarta` argument
+#### Extended Support libraries from HeroDevs
 
-```sh
-grunt --assembly-jakarta
-```
+##### AngularJS
+Since December 31, 2021, AngularJS is no longer officially supported by the original maintainers (Google). We replaced the official AngularJS libraries with the ones from [HeroDevs](https://www.herodevs.com/) to ensure that our used libraries stay secure and supported. We include the AngularJS libraries from HeroDevs in our Community Edition releases from 7.18.0-alpha2 on.
 
-or in watch mode
+**Heads-up:** If you build the Webapps from source code, the build includes the no longer maintained AngularJS libraries in version 1.8.2 unless you have access to the HeroDevs registry and configure it as shown below.
 
-```sh
-grunt auto-build --assembly-jakarta
-```
+##### Bootstrap
+Since December 31, 2021, the legacy Bootstrap 3 library is no longer officially supported by the original maintainers (twbs Bootstrap). We replaced the official Bootstrap 3 libraries with the ones from [HeroDevs](https://www.herodevs.com/) to ensure that our used libraries stay secure and supported. We include the Bootstrap 3 libraries from HeroDevs in our Community Edition releases from 7.23.0-alpha2 on.
 
-#### Testing
+**Heads-up:** If you build the Webapps from source code, the build includes the no longer maintained Bootstrap 3 libraries in version 3.4.1 unless you have access to the HeroDevs registry and configure it as shown below.
 
-Install the webapps with Grunt and start the server in test mode:
+#### angular-ui-bootstrap
+The angular-ui-bootstrap project is no longer being maintained. We replaced the official angular-ui-bootstrap libraries with the ones from [HeroDevs](https://www.herodevs.com/) to ensure that our used libraries stay secure and supported. We include the angular-ui-bootstrap libraries from HeroDevs in our Community Edition releases from 7.23.0-alpha2 on.
 
-```sh
-cd camunda-bpm-platform/webapps/assembly
-mvn jetty:run -Pdev-e2e
-```
+**Heads-up:** If you build the Webapps from source code, the build includes the no longer maintained angular-ui-bootstrap libraries in version 2.5.6 unless you have access to the HeroDevs registry and configure it as shown below.
 
-Make sure that you terminate the server for development or use another port. You may configure the port the server runs on by passing the argument -Djetty.port=WHICH_PORT to the command line.
+#### angular-translate
+Since 2024-01-15 the angular-translate project has been archived. We replaced the official angular-translate libraries with the ones from [HeroDevs](https://www.herodevs.com/) to ensure that our used libraries stay secure and supported. We include the angular-translate libraries from HeroDevs in our Community Edition releases from 7.23.0-alpha2 on.
 
-To run the tests, call
+**Heads-up:** If you build the Webapps from source code, the build includes the no longer maintained angular-translate libraries in version 2.19.0 unless you have access to the HeroDevs registry and configure it as shown below.
 
-```sh
-cd camunda-bpm-platform/webapps/frontend
-grunt test-e2e --protractorConfig=ui/common/tests/develop.conf.js
-```
+#### angular-moment
+The angular-moment project has been archived on Nov 30, 2021. We replaced the official angular-moment libraries with the ones from [HeroDevs](https://www.herodevs.com/) to ensure that our used libraries stay secure and supported. We include the angular-moment libraries from HeroDevs in our Community Edition releases from 7.23.0-alpha2 on.
 
-Now, it opens a new browser at [http://localhost:8080](http://localhost:8080) and does the test steps. If you want to test only one spec or a part of it then you can annotate the description of the spec with the keyword `only`:
+**Heads-up:** If you build the Webapps from source code, the build includes the no longer maintained angular-moment libraries in version 1.3.0 unless you have access to the HeroDevs registry and configure it as shown below.
 
-```javascript
-describe.only('Cockpit Dashboard Spec', function() {
-  // ...
-}
-```
+##### Configure the HeroDevs registry
+To enable pulling the HeroDevs extended support libraries while building the Webapps, please configure the npm registry. Add the HeroDevs npm registry by replacing the variables `${HERODEVS_REGISTRY}` and `${HERODEVS_AUTH_TOKEN}` in the following commands and execute the commands in your terminal.
 
-##### Jakarta Webapps
-
-In order to test the Jakarta Webapps run the same command with an additional `--assembly-jakarta` argument.
-
-#### AngularJS libraries from XLTS.dev
-
-Since December 31, 2021, AngularJS is no longer officially supported by the original maintainers (Google). We replaced the official AngularJS libraries with the ones from [XLTS.dev](https://XLTS.dev) to ensure that our used libraries stay secure and supported. We include the AngularJS libraries from XLTS.dev in our Community Edition releases from 7.18.0-alpha2 on.
-
-**Heads-up:** If you build the Webapps from source code, the build includes the no longer maintained AngularJS libraries in version 1.8.2 unless you have access to the XLTS.dev registry and configure it as shown below.
-
-To enable pulling the XLTS.dev AngularJS libraries while building the Webapps, please configure the npm registry. Add the XLTS.dev npm registry by replacing the variables `${XLTS_REGISTRY}` and `${XLTS_AUTH_TOKEN}` in the following commands and execute the commands in your terminal.
-
-Commands to configure the XLTS.dev npm registry:
+Commands to configure the HeroDevs npm registry:
 
 ```
-npm set @xlts.dev:registry https://${XLTS_REGISTRY}/
-npm set //${XLTS_REGISTRY}/:_authToken ${XLTS_AUTH_TOKEN}
+npm set @neverendingsupport:registry=https://${HERODEVS_REGISTRY}/
+npm set //${HERODEVS_REGISTRY}/:_authToken ${HERODEVS_AUTH_TOKEN}
 ```
 
 Alternatively, you can set the following environment variables:
 
 ```sh
-export XLTS_REGISTRY = "example.com" # Hostname without protocol (e.g., "https://"), leading or trailing slashes
-export XLTS_AUTH_TOKEN = "abc..."    # Token to authenticate against the registry
+export HERODEVS_REGISTRY = "example.com" # Hostname without protocol (e.g., "https://"), leading or trailing slashes
+export HERODEVS_AUTH_TOKEN = "abc..."    # Token to authenticate against the registry
 ```
 
 You receive the information about the registry and the auth token directly from XLTS.dev.
@@ -165,7 +145,6 @@ The supported browsers are:
 - Chrome Latest
 - Firefox Latest
 - Edge Latest
-
 
 ## Contributing
 

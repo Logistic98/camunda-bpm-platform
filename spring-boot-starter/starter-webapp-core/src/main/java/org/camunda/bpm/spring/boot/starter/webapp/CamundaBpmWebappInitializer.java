@@ -19,17 +19,15 @@ package org.camunda.bpm.spring.boot.starter.webapp;
 import static java.util.Collections.singletonMap;
 import static org.glassfish.jersey.servlet.ServletProperties.JAXRS_APPLICATION_CLASS;
 
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterRegistration;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletRegistration;
+import jakarta.servlet.SessionTrackingMode;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Map;
-
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
-import javax.servlet.FilterRegistration;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletRegistration;
-import javax.servlet.SessionTrackingMode;
-
 import org.camunda.bpm.admin.impl.web.AdminApplication;
 import org.camunda.bpm.admin.impl.web.bootstrap.AdminContainerBootstrap;
 import org.camunda.bpm.cockpit.impl.web.CockpitApplication;
@@ -38,6 +36,7 @@ import org.camunda.bpm.engine.rest.filter.CacheControlFilter;
 import org.camunda.bpm.engine.rest.filter.EmptyBodyFilter;
 import org.camunda.bpm.spring.boot.starter.property.CamundaBpmProperties;
 import org.camunda.bpm.spring.boot.starter.property.WebappProperty;
+import org.camunda.bpm.spring.boot.starter.webapp.filter.AppendTrailingSlashFilter;
 import org.camunda.bpm.spring.boot.starter.webapp.filter.LazyProcessEnginesFilter;
 import org.camunda.bpm.spring.boot.starter.webapp.filter.LazySecurityFilter;
 import org.camunda.bpm.tasklist.impl.web.TasklistApplication;
@@ -92,6 +91,14 @@ public class CamundaBpmWebappInitializer implements ServletContextInitializer {
 
     ServletContextUtil.setAppPath(applicationPath, servletContext);
 
+    // make sure that trailing slashes are added for the registered patterns
+    // see AppendTrailingSlashFilter for details
+    registerFilter("AppendTrailingSlashFilter", AppendTrailingSlashFilter.class,
+        applicationPath + "/app",
+        applicationPath + "/app/cockpit",
+        applicationPath + "/app/admin",
+        applicationPath + "/app/tasklist",
+        applicationPath + "/app/welcome");
     registerFilter("Authentication Filter", AuthenticationFilter.class,
         Collections.singletonMap("cacheTimeToLive", getAuthCacheTTL(webapp)),
         applicationPath + "/api/*", applicationPath + "/app/*");
@@ -123,7 +130,7 @@ public class CamundaBpmWebappInitializer implements ServletContextInitializer {
         applicationPath + "/api/*", applicationPath + "/app/*");
 
     registerFilter("CacheControlFilter", CacheControlFilter.class,
-        applicationPath + "/api/*", applicationPath + "/app/*");
+        applicationPath + "/api/*", applicationPath + "/app/*", applicationPath + "/assets/*");
 
     registerServlet("Cockpit Api", CockpitApplication.class,
         applicationPath + "/api/cockpit/*");

@@ -26,7 +26,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
+import org.camunda.bpm.engine.ActivityTypes;
 import org.camunda.bpm.engine.ProcessEngineException;
 import org.camunda.bpm.engine.impl.ProcessEngineLogger;
 import org.camunda.bpm.engine.impl.bpmn.helper.BpmnProperties;
@@ -38,6 +38,7 @@ import org.camunda.bpm.engine.impl.core.variable.event.VariableEvent;
 import org.camunda.bpm.engine.impl.core.variable.scope.AbstractVariableScope;
 import org.camunda.bpm.engine.impl.form.FormPropertyHelper;
 import org.camunda.bpm.engine.impl.history.HistoryLevel;
+import org.camunda.bpm.engine.impl.history.event.HistoricVariableUpdateEventEntity;
 import org.camunda.bpm.engine.impl.history.event.HistoryEvent;
 import org.camunda.bpm.engine.impl.history.event.HistoryEventProcessor;
 import org.camunda.bpm.engine.impl.history.event.HistoryEventTypes;
@@ -46,7 +47,6 @@ import org.camunda.bpm.engine.impl.incident.IncidentContext;
 import org.camunda.bpm.engine.impl.incident.IncidentHandler;
 import org.camunda.bpm.engine.impl.incident.IncidentHandling;
 import org.camunda.bpm.engine.impl.persistence.entity.DelayedVariableEvent;
-import org.camunda.bpm.engine.impl.persistence.entity.ExecutionEntity;
 import org.camunda.bpm.engine.impl.persistence.entity.IncidentEntity;
 import org.camunda.bpm.engine.impl.pvm.PvmActivity;
 import org.camunda.bpm.engine.impl.pvm.PvmException;
@@ -173,6 +173,8 @@ public abstract class PvmExecutionImpl extends CoreExecution implements
   protected int activityInstanceState = ActivityInstanceState.DEFAULT.getStateCode();
 
   protected boolean activityInstanceEndListenersFailed = false;
+
+  protected Map<String, Object> payloadForTriggeredScope;
 
   // sequence counter ////////////////////////////////////////////////////////
   protected long sequenceCounter = 0;
@@ -359,7 +361,7 @@ public abstract class PvmExecutionImpl extends CoreExecution implements
 
     // fire activity end on active activity
     PvmActivity activity = getActivity();
-    if (isActive && activity != null) {
+    if ((isActive || externallyTerminated) && activity != null) {
       // set activity instance state to cancel
       if (activityInstanceState != ENDING.getStateCode() || activityInstanceEndListenersFailed) {
         setCanceled(true);
@@ -851,8 +853,25 @@ public abstract class PvmExecutionImpl extends CoreExecution implements
       default:
         setActivity(activityImpl);
         setActivityInstanceId(null);
+        setDelayedPayloadToNewScope(activity);
         performOperation(PvmAtomicOperation.ACTIVITY_START_CREATE_SCOPE);
         break;
+    }
+  }
+
+  /*
+   * TODO: Move out setDelayedPayloadToNewScope from PvmExecution to PVM Operations
+   * check  https://github.com/camunda/camunda-bpm-platform/issues/3979
+   */
+  protected void setDelayedPayloadToNewScope(PvmActivity activity) {
+    String activityType = (String) activity.getProperty(BpmnProperties.TYPE.getName());
+    if (ActivityTypes.START_EVENT_MESSAGE.equals(activityType) // Event subprocess message start event
+        || ActivityTypes.BOUNDARY_MESSAGE.equals(activityType)) {
+      if (getProcessInstance().getPayloadForTriggeredScope() != null) {
+        this.setVariablesLocal(getProcessInstance().getPayloadForTriggeredScope());
+        // clear the process instance
+        getProcessInstance().setPayloadForTriggeredScope(null);
+      }
     }
   }
 
@@ -1924,6 +1943,14 @@ public abstract class PvmExecutionImpl extends CoreExecution implements
 
   public void setNextActivity(PvmActivity nextActivity) {
     this.nextActivity = nextActivity;
+  }
+
+  public Map<String, Object> getPayloadForTriggeredScope() {
+    return payloadForTriggeredScope;
+  }
+
+  public void setPayloadForTriggeredScope(Map<String, Object> payloadForTriggeredScope) {
+    this.payloadForTriggeredScope = payloadForTriggeredScope;
   }
 
   public PvmExecutionImpl getParentScopeExecution(boolean considerSuperExecution) {

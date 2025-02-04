@@ -16,12 +16,12 @@
  */
 
 'use strict';
-var fs = require('fs');
+
 var $ = require('jquery');
 
-var angular = require('../../../../camunda-bpm-sdk-js/vendor/angular'),
-  template = fs.readFileSync(__dirname + '/cam-widget-header.html', 'utf8'),
-  logo = fs.readFileSync(__dirname + '/logo-2020-round.svg', 'utf8');
+var angular = require('camunda-bpm-sdk-js/vendor/angular'),
+  template = require('./cam-widget-header.html?raw'),
+  logo = require('./logo-2020-round.svg?raw');
 
 var apps = {
   welcome: {
@@ -79,6 +79,10 @@ module.exports = function() {
         $scope.brandName =
           configuration.getAppVendor() + ' ' + configuration.getAppName();
         $('head title').text($scope.brandName);
+
+        $scope.trustAsHtml = $sce.trustAsHtml;
+        // eslint-disable-next-line
+        $scope.isCommunityEdition = CAMUNDA_EDITION === 'CE';
 
         $scope.logout = AuthenticationService.logout;
         $scope.getTargetRoute = function() {

@@ -6,7 +6,7 @@
   <parent>
     <groupId>org.camunda.bpm.webapp</groupId>
     <artifactId>camunda-webapp-root</artifactId>
-    <version>7.20.0-SNAPSHOT</version>
+    <version>7.23.0-SNAPSHOT</version>
     <relativePath>../</relativePath>
   </parent>
 
@@ -18,8 +18,7 @@
     <jakarta.webapp>${project.build.directory}/generated-resources/jakarta-webapp</jakarta.webapp>
     <jakarta.runtime>${project.build.directory}/generated-resources/jakarta-runtime</jakarta.runtime>
 
-    <version.xml.jaxb-impl>4.0.2</version.xml.jaxb-impl>
-    <version.resteasy>6.2.3.Final</version.resteasy>
+    <version.resteasy>6.2.8.Final</version.resteasy>
     <version.jetty>11.0.14</version.jetty>
     <version.jersey2>3.1.1</version.jersey2>
 
@@ -132,6 +131,22 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
+          <execution>
+            <id>copy-resources-assembly</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${basedir}/target/webapp</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${basedir}/../frontend/target/webapp</directory>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
           <execution>
             <id>copy-sources</id>
             <phase>generate-sources</phase>
@@ -503,7 +518,7 @@
         <dependency>
           <groupId>com.sun.xml.bind</groupId>
           <artifactId>jaxb-impl</artifactId>
-          <version>${version.xml.jaxb-impl}</version>
+          <version>${version.xml.jaxb-impl4}</version>
         </dependency>
         <dependency>
           <groupId>org.graalvm.js</groupId>
@@ -564,145 +579,13 @@
       </build>
       <properties>
         <java.resources.override>${jakarta.runtime}/develop/resources</java.resources.override>
-        <skip.frontend.build>true</skip.frontend.build>
       </properties>
-    </profile>
-
-    <profile>
-      <id>mariadb</id>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <configuration>
-              <excludedGroups>org.camunda.bpm.cockpit.plugin.base.SlowMariaDbTest</excludedGroups>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
 
     <profile>
       <id>h2</id>
       <properties>
         <project.parent.basedir>./</project.parent.basedir>
-      </properties>
-    </profile>
-
-    <profile>
-      <id>node-build-windows</id>
-      <activation>
-        <os>
-          <family>windows</family>
-        </os>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-antrun-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>build-frontend</id>
-                <phase>generate-resources</phase>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-                <inherited>false</inherited>
-                <configuration>
-                  <skip>${skip.frontend.build}</skip>
-                  <target>
-                    <!-- run node build -->
-                    <exec executable="cmd" failonerror="true" dir="../frontend">
-                      <arg value="/c" />
-                      <arg value="npm" />
-                      <arg value="ci" />
-                    </exec>
-                    <exec executable="cmd" failonerror="true" dir="../frontend">
-                      <arg value="/c" />
-                      <arg value="node" />
-                      <arg value="scripts/xlts" />
-                      <arg value="install" />
-                    </exec>
-                    <exec executable="cmd" failonerror="true" dir="../frontend">
-                      <arg value="/c" />
-                      <arg value="node_modules\.bin\grunt.cmd" />
-                      <arg value="build" />
-                      <arg value="--color=false" />
-                      <arg value="--assembly-jakarta" />
-                    </exec>
-                  </target>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
-    <profile>
-      <id>node-build-unix</id>
-      <activation>
-        <os>
-          <family>!windows</family>
-        </os>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-antrun-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>build-frontend</id>
-                <phase>generate-resources</phase>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-                <inherited>false</inherited>
-                <configuration>
-                  <skip>${skip.frontend.build}</skip>
-                  <target>
-                    <!-- run node build -->
-                    <exec executable="npm" failonerror="true" dir="../frontend">
-                      <arg value="ci" />
-                    </exec>
-                    <exec executable="node" failonerror="true" dir="../frontend">
-                      <arg value="scripts/xlts" />
-                      <arg value="install" />
-                    </exec>
-                    <exec executable="./node_modules/grunt-cli/bin/grunt" failonerror="true" dir="../frontend">
-                      <arg value="build" />
-                      <arg value="--color=false" />
-                      <arg value="--assembly-jakarta" />
-                    </exec>
-                  </target>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
-    <profile>
-      <id>doFrontendBuild</id>
-      <properties>
-        <skip.frontend.build>false</skip.frontend.build>
-      </properties>
-    </profile>
-
-    <profile>
-      <id>skipFrontendBuild</id>
-      <properties>
-        <skip.frontend.build>true</skip.frontend.build>
-      </properties>
-    </profile>
-
-    <profile>
-      <id>cfgAuthorizationCheckRevokesAlways</id>
-      <properties>
-        <authorizationCheckRevokes>always</authorizationCheckRevokes>
       </properties>
     </profile>
 
@@ -781,7 +664,7 @@
       </activation>
 
       <properties>
-        <version.spring.framework>6.0.4</version.spring.framework>
+        <version.spring.framework>${version.spring.framework6}</version.spring.framework>
       </properties>
 
       <dependencies>

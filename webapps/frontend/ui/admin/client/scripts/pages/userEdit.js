@@ -17,23 +17,12 @@
 
 'use strict';
 
-var fs = require('fs');
+var template = require('./userEdit.html?raw');
+var groupTemplate = require('./create-group-membership.html?raw');
+var tenantTemplate = require('./create-tenant-user-membership.html?raw');
+var confirmationTemplate = require('./generic-confirmation.html?raw');
 
-var template = fs.readFileSync(__dirname + '/userEdit.html', 'utf8');
-var groupTemplate = fs.readFileSync(
-  __dirname + '/create-group-membership.html',
-  'utf8'
-);
-var tenantTemplate = fs.readFileSync(
-  __dirname + '/create-tenant-user-membership.html',
-  'utf8'
-);
-var confirmationTemplate = fs.readFileSync(
-  __dirname + '/generic-confirmation.html',
-  'utf8'
-);
-
-var angular = require('../../../../../camunda-commons-ui/vendor/angular');
+var angular = require('camunda-commons-ui/vendor/angular');
 
 module.exports = [
   '$routeProvider',
@@ -69,8 +58,7 @@ module.exports = [
           $http,
           Uri
         ) {
-          var AuthorizationResource = camAPI.resource('authorization'),
-            GroupResource = camAPI.resource('group'),
+          var GroupResource = camAPI.resource('group'),
             TenantResource = camAPI.resource('tenant'),
             UserResource = camAPI.resource('user');
 
@@ -116,8 +104,6 @@ module.exports = [
           $scope.groupList = null;
           $scope.groupIdList = null;
 
-          $scope.availableOperations = {};
-
           // common form validation //////////////////////////
 
           /** form must be valid & user must have made some changes */
@@ -134,14 +120,6 @@ module.exports = [
                 ))
             );
           };
-
-          // load options ////////////////////////////////////
-
-          UserResource.options({id: $scope.decodedUserId}, function(err, res) {
-            angular.forEach(res.links, function(link) {
-              $scope.availableOperations[link.rel] = true;
-            });
-          });
 
           // update profile form /////////////////////////////
 
@@ -191,9 +169,14 @@ module.exports = [
                 });
                 loadProfile();
               } else {
+                const {
+                  response: {
+                    body: {message}
+                  }
+                } = err;
                 Notifications.addError({
                   status: $translate.instant('NOTIFICATIONS_STATUS_FAILED'),
-                  message: $translate.instant('USERS_EDIT_FAILED')
+                  message: $translate.instant('USERS_EDIT_FAILED', {message})
                 });
               }
             });
@@ -253,10 +236,16 @@ module.exports = [
                     });
                   }
                 } else {
+                  const {
+                    response: {
+                      body: {message}
+                    }
+                  } = err;
                   Notifications.addError({
                     status: $translate.instant('NOTIFICATIONS_STATUS_PASSWORD'),
                     message: $translate.instant(
-                      'USERS_PASSWORD_COULD_NOT_CHANGE'
+                      'USERS_PASSWORD_COULD_NOT_CHANGE',
+                      {message}
                     )
                   });
                 }
@@ -267,48 +256,82 @@ module.exports = [
           // delete user form /////////////////////////////
 
           $scope.deleteUser = function() {
-            $modal
-              .open({
-                template: confirmationTemplate,
-                controller: [
-                  '$scope',
-                  function($dialogScope) {
-                    $dialogScope.question = $translate.instant(
-                      'USERS_USER_DELETE_CONFIRM',
-                      {user: $scope.user.id}
-                    );
-                  }
-                ]
-              })
-              .result.then(function() {
-                UserResource.delete({id: $scope.decodedUserId}, function() {
-                  if ($scope.authenticatedUser.name !== $scope.user.id) {
-                    Notifications.addMessage({
-                      type: 'success',
-                      status: $translate.instant(
-                        'NOTIFICATIONS_STATUS_SUCCESS'
-                      ),
-                      message: $translate.instant('USERS_USER_DELETE_SUCCESS', {
-                        user: $scope.user.id
-                      })
-                    });
+            $modal.open({
+              template: confirmationTemplate,
+              controller: [
+                '$scope',
+                '$timeout',
+                function($dialogScope, $timeout) {
+                  $dialogScope.question = $translate.instant(
+                    'USERS_USER_DELETE_CONFIRM',
+                    {user: $scope.user.id}
+                  );
+                  $dialogScope.delete = () => {
+                    UserResource.delete({id: $scope.decodedUserId}, function(
+                      err
+                    ) {
+                      if (err === null) {
+                        if ($scope.authenticatedUser.name !== $scope.user.id) {
+                          $timeout(() => {
+                            Notifications.addMessage({
+                              type: 'success',
+                              status: $translate.instant(
+                                'NOTIFICATIONS_STATUS_SUCCESS'
+                              ),
+                              message: $translate.instant(
+                                'USERS_USER_DELETE_SUCCESS',
+                                {
+                                  user: $scope.user.id
+                                }
+                              )
+                            });
+                          }, 200);
+                          $location.path('/users');
+                        } else {
+                          $http
+                            .get(Uri.appUri('engine://engine/'))
+                            .then(function(response) {
+                              var engines = response.data;
 
-                    $location.path('/users');
-                  } else {
-                    $http
-                      .get(Uri.appUri('engine://engine/'))
-                      .then(function(response) {
-                        var engines = response.data;
-
-                        engines.forEach(function(engine) {
-                          AuthenticationService.logout(engine.name);
+                              engines.forEach(function(engine) {
+                                AuthenticationService.logout(engine.name);
+                              });
+                            })
+                            .catch(angular.noop);
+                        }
+                        $dialogScope.$close();
+                      } else {
+                        const {
+                          response: {
+                            body: {message}
+                          }
+                        } = err;
+                        Notifications.addError({
+                          status: $translate.instant(
+                            'NOTIFICATIONS_STATUS_ERROR'
+                          ),
+                          message: $translate.instant(
+                            'USERS_USER_DELETE_FAILED',
+                            {
+                              user: $scope.user.id,
+                              message
+                            }
+                          )
                         });
-                      })
-                      .catch(angular.noop);
-                  }
-                });
-              })
-              .catch(angular.noop);
+                      }
+                    });
+                  };
+                  $timeout(() =>
+                    Notifications.addMessage({
+                      type: 'info',
+                      status: $translate.instant('USERS_WARNING'),
+                      unsafe: true,
+                      message: $translate.instant('USERS_USER_DELETE_INFO')
+                    })
+                  );
+                }
+              ]
+            });
           };
 
           // Unlock User
@@ -391,15 +414,36 @@ module.exports = [
           $scope.removeGroup = function(groupId) {
             GroupResource.deleteMember(
               {userId: $scope.decodedUserId, id: groupId},
-              function() {
-                Notifications.addMessage({
-                  type: 'success',
-                  status: $translate.instant('NOTIFICATIONS_STATUS_SUCCESS'),
-                  message: $translate.instant('USERS_USER_DELETE_FROM_GROUP', {
-                    user: $scope.user.id
-                  })
-                });
-                loadGroups();
+              function(err) {
+                if (err === null) {
+                  Notifications.addMessage({
+                    type: 'success',
+                    status: $translate.instant('NOTIFICATIONS_STATUS_SUCCESS'),
+                    message: $translate.instant(
+                      'USERS_USER_DELETE_FROM_GROUP',
+                      {
+                        user: $scope.user.id
+                      }
+                    )
+                  });
+                  loadGroups();
+                } else {
+                  const {
+                    response: {
+                      body: {message}
+                    }
+                  } = err;
+                  Notifications.addError({
+                    status: $translate.instant('NOTIFICATIONS_STATUS_FAILED'),
+                    message: $translate.instant(
+                      'USERS_USER_DELETE_FROM_GROUP_FAILED',
+                      {
+                        user: $scope.user.id,
+                        message
+                      }
+                    )
+                  });
+                }
               }
             );
           };
@@ -417,12 +461,6 @@ module.exports = [
             };
 
             openCreateDialog(dialogConfig);
-          };
-
-          var checkRemoveGroupMembershipAuthorized = function() {
-            checkDeleteAuthorized('group membership', function(err, res) {
-              $scope.availableOperations.removeGroup = res.authorized;
-            });
           };
 
           // Tenant Form ///////////////////////////////////////////
@@ -488,15 +526,36 @@ module.exports = [
           $scope.removeTenant = function(tenantId) {
             TenantResource.deleteUserMember(
               {userId: $scope.decodedUserId, id: tenantId},
-              function() {
-                Notifications.addMessage({
-                  type: 'success',
-                  status: $translate.instant('NOTIFICATIONS_STATUS_SUCCESS'),
-                  message: $translate.instant('USERS_USER_DELETE_FROM_TENANT', {
-                    user: $scope.user.id
-                  })
-                });
-                loadTenants();
+              function(err) {
+                if (err === null) {
+                  Notifications.addMessage({
+                    type: 'success',
+                    status: $translate.instant('NOTIFICATIONS_STATUS_SUCCESS'),
+                    message: $translate.instant(
+                      'USERS_USER_DELETE_FROM_TENANT',
+                      {
+                        user: $scope.user.id
+                      }
+                    )
+                  });
+                  loadTenants();
+                } else {
+                  const {
+                    response: {
+                      body: {message}
+                    }
+                  } = err;
+                  Notifications.addError({
+                    status: $translate.instant('NOTIFICATIONS_STATUS_FAILED'),
+                    message: $translate.instant(
+                      'USERS_USER_DELETE_FROM_TENANT_FAILED',
+                      {
+                        user: $scope.user.id,
+                        message
+                      }
+                    )
+                  });
+                }
               }
             );
           };
@@ -516,12 +575,6 @@ module.exports = [
             openCreateDialog(dialogConfig);
           };
 
-          var checkRemoveTenantMembershipAuthorized = function() {
-            checkDeleteAuthorized('tenant membership', function(err, res) {
-              $scope.availableOperations.removeTenant = res.authorized;
-            });
-          };
-
           // Modal Dialog Configuration ///////////////////////////////
 
           var openCreateDialog = function(dialogCfg) {
@@ -533,7 +586,7 @@ module.exports = [
 
             dialog.result
               .then(function(result) {
-                if (result == 'SUCCESS') {
+                if (result === 'SUCCESS') {
                   dialogCfg.callback();
                 }
               })
@@ -557,28 +610,15 @@ module.exports = [
             );
           };
 
-          // Delete Authorization Check /////////////////////////
-
-          var checkDeleteAuthorized = function(resourceName, cb) {
-            AuthorizationResource.check(
-              {
-                permissionName: 'DELETE',
-                resourceName: resourceName,
-                resourceType: 3
-              },
-              cb
-            );
-          };
-
           // page controls ////////////////////////////////////
 
           $scope.show = function(fragment) {
-            return fragment == $location.search().tab;
+            return fragment === $location.search().tab;
           };
 
           $scope.activeClass = function(link) {
             var path = $location.absUrl();
-            return path.indexOf(link) != -1 ? 'active' : '';
+            return path.indexOf(link) !== -1 ? 'active' : '';
           };
 
           // initialization ///////////////////////////////////
@@ -589,8 +629,6 @@ module.exports = [
           refreshBreadcrumbs();
 
           loadProfile();
-          checkRemoveGroupMembershipAuthorized();
-          checkRemoveTenantMembershipAuthorized();
 
           if (!$location.search().tab) {
             $location.search({tab: 'profile'});

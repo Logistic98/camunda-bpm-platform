@@ -24,8 +24,10 @@ import static org.hamcrest.core.IsNull.notNullValue;
 import static org.hamcrest.core.IsNull.nullValue;
 
 import java.io.ByteArrayInputStream;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,15 +98,18 @@ public class RemovalTimeStrategyStartTest extends AbstractRemovalTimeTest {
   }
 
   protected final String CALLED_PROCESS_KEY = "calledProcess";
+
   protected final BpmnModelInstance CALLED_PROCESS = Bpmn.createExecutableProcess(CALLED_PROCESS_KEY)
-    .startEvent()
+      .camundaHistoryTimeToLive(180)
+      .startEvent()
       .userTask("userTask")
-        .name("userTask")
-        .camundaCandidateUsers("foo")
+      .name("userTask")
+      .camundaCandidateUsers("foo")
       .serviceTask()
-        .camundaAsyncBefore()
-        .camundaClass(FailingDelegate.class.getName())
-    .endEvent().done();
+      .camundaAsyncBefore()
+      .camundaClass(FailingDelegate.class.getName())
+      .endEvent()
+      .done();
 
   protected final String CALLING_PROCESS_KEY = "callingProcess";
   protected final BpmnModelInstance CALLING_PROCESS = Bpmn.createExecutableProcess(CALLING_PROCESS_KEY)
@@ -114,7 +119,7 @@ public class RemovalTimeStrategyStartTest extends AbstractRemovalTimeTest {
         .calledElement(CALLED_PROCESS_KEY)
     .endEvent().done();
 
-  protected final Date START_DATE = new Date(1363608000000L);
+  protected final Date START_DATE = new GregorianCalendar(2013, Calendar.MARCH, 18, 13, 0, 0).getTime();
 
   @Test
   @Deployment(resources = {
@@ -931,7 +936,7 @@ public class RemovalTimeStrategyStartTest extends AbstractRemovalTimeTest {
 
     testRule.deploy(CALLED_PROCESS);
 
-    repositoryService.suspendProcessDefinitionByKey(CALLED_PROCESS_KEY, true, new Date(1363608000000L));
+    repositoryService.suspendProcessDefinitionByKey(CALLED_PROCESS_KEY, true, new GregorianCalendar(2013, Calendar.MARCH, 18, 13, 0, 0).getTime());
 
     String jobId = managementService.createJobQuery()
       .singleResult()
@@ -1030,7 +1035,7 @@ public class RemovalTimeStrategyStartTest extends AbstractRemovalTimeTest {
 
     testRule.deploy(CALLED_PROCESS);
 
-    repositoryService.suspendProcessDefinitionByKey(CALLED_PROCESS_KEY, true, new Date(1363608000000L));
+    repositoryService.suspendProcessDefinitionByKey(CALLED_PROCESS_KEY, true, new GregorianCalendar(2013, Calendar.MARCH, 18, 13, 0, 0).getTime());
 
     // when
     HistoricJobLog jobLog = historyService.createHistoricJobLogQuery().singleResult();
@@ -1300,7 +1305,7 @@ public class RemovalTimeStrategyStartTest extends AbstractRemovalTimeTest {
 
     // assume
     assertThat(comment, notNullValue());
-    
+
     // then
     assertThat(comment.getRemovalTime(), nullValue());
   }

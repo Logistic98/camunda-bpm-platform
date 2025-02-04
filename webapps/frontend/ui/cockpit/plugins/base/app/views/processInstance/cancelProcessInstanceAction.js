@@ -17,16 +17,8 @@
 
 'use strict';
 
-var fs = require('fs');
-
-var dialogTemplate = fs.readFileSync(
-  __dirname + '/cancel-process-instance-dialog.html',
-  'utf8'
-);
-var actionTemplate = fs.readFileSync(
-  __dirname + '/cancel-process-instance-action.html',
-  'utf8'
-);
+var dialogTemplate = require('./cancel-process-instance-dialog.html?raw');
+var actionTemplate = require('./cancel-process-instance-action.html?raw');
 
 module.exports = function(ngModule) {
   ngModule.controller('CancelProcessInstanceActionController', [

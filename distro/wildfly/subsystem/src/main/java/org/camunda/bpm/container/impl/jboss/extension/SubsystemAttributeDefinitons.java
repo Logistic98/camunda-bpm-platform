@@ -18,7 +18,6 @@ package org.camunda.bpm.container.impl.jboss.extension;
 
 import org.camunda.bpm.container.impl.jboss.config.ManagedJtaProcessEngineConfiguration;
 import org.camunda.bpm.container.impl.jboss.util.CustomMarshaller;
-import org.camunda.bpm.container.impl.jboss.util.FixedObjectTypeAttributeDefinition;
 import org.jboss.as.controller.*;
 import org.jboss.as.controller.registry.AttributeAccess;
 import org.jboss.dmr.ModelNode;
@@ -77,7 +76,6 @@ public class SubsystemAttributeDefinitons {
                 .build();
 
     // job executor
-    @Deprecated
     public static final AttributeDefinition THREAD_POOL_NAME =
             new SimpleAttributeDefinitionBuilder(ModelConstants.THREAD_POOL_NAME, ModelType.STRING, true)
                 .setDefaultValue(new ModelNode(DEFAULT_JOB_EXECUTOR_THREADPOOL_NAME))
@@ -134,19 +132,19 @@ public class SubsystemAttributeDefinitons {
         PROPERTIES
     };
 
-    public static final FixedObjectTypeAttributeDefinition PLUGIN = FixedObjectTypeAttributeDefinition.Builder
+    public static final ObjectTypeAttributeDefinition PLUGIN = ObjectTypeAttributeDefinition.Builder
             .of(ModelConstants.PLUGIN, PLUGIN_ATTRIBUTES)
             .setAttributeMarshaller(CustomMarshaller.OBJECT_AS_ELEMENT)
             .setAttributeParser(AttributeParser.OBJECT_LIST_PARSER)
             .setRequires(ModelConstants.PLUGIN_CLASS)
-            .setAllowNull(true)
+            .setRequired(false)
             .setRestartAllServices()
             .build();
 
     public static final ObjectListAttributeDefinition PLUGINS = ObjectListAttributeDefinition.Builder
             .of(ModelConstants.PLUGINS, PLUGIN)
             .setAttributeMarshaller(CustomMarshaller.OBJECT_LIST)
-            .setAllowNull(true)
+            .setRequired(false)
             .setAllowExpression(true)
             .setRestartAllServices()
             .build();

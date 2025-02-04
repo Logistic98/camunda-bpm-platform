@@ -16,18 +16,11 @@
  */
 
 'use strict';
-var fs = require('fs');
 
-var template = fs.readFileSync(
-  __dirname + '/cam-tasklist-task-meta.html',
-  'utf8'
-);
-var editGroupsFormTemplate = fs.readFileSync(
-  __dirname + '/../modals/cam-tasklist-groups-modal.html',
-  'utf8'
-);
+var template = require('./cam-tasklist-task-meta.html?raw');
+var editGroupsFormTemplate = require('./../modals/cam-tasklist-groups-modal.html?raw');
 
-var angular = require('../../../../../../camunda-commons-ui/vendor/angular');
+var angular = require('camunda-commons-ui/vendor/angular');
 
 module.exports = [
   '$uibModal',
@@ -228,6 +221,7 @@ module.exports = [
         $scope.validationInProgress = false; // not yet started the validation
 
         var previousAssigneeInput;
+
         function validateAssignee(targetElement, done) {
           done = done || angular.noop;
           var newId = targetElement.value;
@@ -365,7 +359,7 @@ module.exports = [
 
         $scope.hasAssignee = function() {
           // empty string is also a valid assignee
-          return $scope.task.assignee != null;
+          return $scope.task?.assignee != null;
         };
 
         $scope.editGroups = function() {

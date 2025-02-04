@@ -6,7 +6,7 @@
   <parent>
     <groupId>org.camunda.bpm</groupId>
     <artifactId>camunda-database-settings</artifactId>
-    <version>7.20.0-SNAPSHOT</version>
+    <version>7.23.0-SNAPSHOT</version>
     <relativePath>../database</relativePath>
   </parent>
 
@@ -26,7 +26,6 @@
 
     <frontend.development.cockpit.path>${frontend.app.path}</frontend.development.cockpit.path>
     <frontend.development.tasklist.path>${frontend.app.path}</frontend.development.tasklist.path>
-    <frontend.react.path>../frontend/ui/cockpit</frontend.react.path>
 
     <exec.shell>bash</exec.shell>
     <exec.arg>-c</exec.arg>
@@ -83,7 +82,6 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>provided</scope>
@@ -114,12 +112,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-inline</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-webapp</artifactId>
       <version>${version.jetty}</version>
@@ -142,6 +134,77 @@
   </dependencies>
 
   <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-clean-plugin</artifactId>
+        <inherited>false</inherited>
+        <configuration>
+          <filesets>
+            <fileset>
+              <directory>./frontend/target</directory>
+            </fileset>
+          </filesets>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.github.eirslett</groupId>
+        <artifactId>frontend-maven-plugin</artifactId>
+        <inherited>false</inherited>
+        <configuration>
+          <workingDirectory>./frontend</workingDirectory>
+          <outputdir>${project.build.directory}/webapp</outputdir>
+          <skip>${skip.frontend.build}</skip>
+        </configuration>
+        <executions>
+          <execution>
+            <id>install node and npm</id>
+            <goals>
+              <goal>install-node-and-npm</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>npm ci</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <arguments>ci</arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>Install HeroDevs XLTS dependencies</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <arguments>run xlts-install</arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>License check</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <arguments>run license-check</arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>Build</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <arguments>run build</arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
     <pluginManagement>
       <plugins>
         <!-- test plugins -->
@@ -238,7 +301,7 @@
           <executions>
             <execution>
               <id>zip-frontend-sources</id>
-              <phase>generate-resources</phase>
+              <phase>process-resources</phase>
               <goals>
                 <goal>single</goal>
               </goals>
@@ -257,17 +320,15 @@
 
   <modules>
     <module>assembly</module>
+    <module>assembly-jakarta</module>
   </modules>
 
   <profiles>
     <profile>
-      <id>jdk11-and-onwards</id>
-      <activation>
-        <jdk>[11,)</jdk>
-      </activation>
-      <modules>
-        <module>assembly-jakarta</module>
-      </modules>
+      <id>skipFrontendBuild</id>
+      <properties>
+        <skip.frontend.build>true</skip.frontend.build>
+      </properties>
     </profile>
   </profiles>
 

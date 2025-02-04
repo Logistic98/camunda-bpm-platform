@@ -17,7 +17,7 @@
 
 'use strict';
 
-var angular = require('../../../../../camunda-commons-ui/vendor/angular');
+var angular = require('camunda-commons-ui/vendor/angular');
 
 module.exports = [
   '$scope',
@@ -38,7 +38,7 @@ module.exports = [
         resourceId: '*',
         permissions: ['ALL'],
         identityId: '',
-        identityType: 'User'
+        identityType: 'Group'
       });
     };
 

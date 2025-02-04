@@ -16,6 +16,7 @@
  */
 package org.camunda.bpm.run;
 
+import jakarta.servlet.Filter;
 import org.apache.catalina.filters.CorsFilter;
 import org.camunda.bpm.engine.rest.security.auth.ProcessEngineAuthenticationFilter;
 import org.camunda.bpm.run.property.CamundaBpmRunAuthenticationProperties;
@@ -23,6 +24,7 @@ import org.camunda.bpm.run.property.CamundaBpmRunCorsProperty;
 import org.camunda.bpm.run.property.CamundaBpmRunProperties;
 import org.camunda.bpm.spring.boot.starter.CamundaBpmAutoConfiguration;
 import org.camunda.bpm.spring.boot.starter.rest.CamundaBpmRestInitializer;
+import org.camunda.bpm.spring.boot.starter.rest.CamundaJerseyResourceConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -33,7 +35,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.servlet.Filter;
+import java.util.Collections;
 
 @EnableConfigurationProperties(CamundaBpmRunProperties.class)
 @Configuration
@@ -105,6 +107,13 @@ public class CamundaBpmRunRestConfiguration {
                                   camundaBpmRunProperties.getCors().getPreflightMaxAge());
 
     return registration;
+  }
+
+  @Bean
+  public CamundaJerseyResourceConfig camundaRunJerseyResourceConfig() {
+    CamundaJerseyResourceConfig camundaJerseyResourceConfig = new CamundaJerseyResourceConfig();
+    camundaJerseyResourceConfig.setProperties(Collections.singletonMap("jersey.config.server.wadl.disableWadl", camundaBpmRunProperties.getRest().isDisableWadl()));
+    return camundaJerseyResourceConfig;
   }
 
 }

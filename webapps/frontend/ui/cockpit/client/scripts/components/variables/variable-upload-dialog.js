@@ -17,14 +17,9 @@
 
 'use strict';
 
-var fs = require('fs');
-
 var angular = require('angular');
 
-var template = fs.readFileSync(
-  __dirname + '/variable-upload-dialog.html',
-  'utf8'
-);
+var template = require('./variable-upload-dialog.html?raw');
 
 var Controller = [
   '$uibModalInstance',
@@ -55,8 +50,6 @@ var Controller = [
     $scope.status = BEFORE_UPLOAD;
 
     $scope.variable = variable;
-
-    var file;
 
     $scope.$on('$routeChangeStart', function() {
       $modalInstance.dismiss();
@@ -98,8 +91,9 @@ var Controller = [
         });
       }
 
-      // perform HTML 5 file opload (not supported by IE 9)
+      // perform HTML 5 file upload (not supported by IE 9)
       var fd = new FormData();
+      const file = angular.element('#variableFileUpload')[0].files[0];
       fd.append('data', file);
       fd.append('valueType', variable.type);
 
@@ -113,10 +107,6 @@ var Controller = [
         })
         .then(uploadComplete)
         .catch(uploadFailed);
-    };
-
-    $scope.setFile = function(element) {
-      file = element.files[0];
     };
   }
 ];

@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.camunda.bpm.engine.impl.Direction;
 import org.camunda.bpm.engine.impl.JobQueryImpl;
 import org.camunda.bpm.engine.impl.JobQueryProperty;
@@ -116,10 +115,12 @@ public class JobManager extends AbstractManager {
   }
 
   public void reschedule(JobEntity jobEntity, Date newDuedate) {
-    ((EverLivingJobEntity)jobEntity).init(Context.getCommandContext(), true);
-    jobEntity.setSuspensionState(SuspensionState.ACTIVE.getStateCode());
-    jobEntity.setDuedate(newDuedate);
-    hintJobExecutorIfNeeded(jobEntity, newDuedate);
+    if (jobEntity instanceof EverLivingJobEntity || jobEntity instanceof MessageEntity) {
+      jobEntity.init(Context.getCommandContext(), true, false);
+      jobEntity.setSuspensionState(SuspensionState.ACTIVE.getStateCode());
+      jobEntity.setDuedate(newDuedate);
+      hintJobExecutorIfNeeded(jobEntity, newDuedate);
+    }
   }
 
   private void hintJobExecutorIfNeeded(JobEntity jobEntity, Date duedate) {
@@ -203,9 +204,11 @@ public class JobManager extends AbstractManager {
 
     Map<String,Object> params = new HashMap<>();
     Date now = ClockUtil.getCurrentTime();
+
     params.put("now", now);
     params.put("alwaysSetDueDate", isEnsureJobDueDateNotNull());
     params.put("deploymentAware", engineConfiguration.isJobExecutorDeploymentAware());
+
     if (engineConfiguration.isJobExecutorDeploymentAware()) {
       Set<String> registeredDeployments = engineConfiguration.getRegisteredDeployments();
       if (!registeredDeployments.isEmpty()) {
@@ -216,12 +219,14 @@ public class JobManager extends AbstractManager {
     boolean jobExecutorAcquireByPriority = engineConfiguration.isJobExecutorAcquireByPriority();
     long jobExecutorPriorityRangeMin = engineConfiguration.getJobExecutorPriorityRangeMin();
     long jobExecutorPriorityRangeMax = engineConfiguration.getJobExecutorPriorityRangeMax();
+
     params.put("jobPriorityMin", jobExecutorAcquireByPriority && jobExecutorPriorityRangeMin != Long.MIN_VALUE ? jobExecutorPriorityRangeMin : null);
     params.put("jobPriorityMax", jobExecutorAcquireByPriority && jobExecutorPriorityRangeMax != Long.MAX_VALUE ? jobExecutorPriorityRangeMax : null);
 
     params.put("historyCleanupEnabled", engineConfiguration.isHistoryCleanupEnabled());
 
     List<QueryOrderingProperty> orderingProperties = new ArrayList<>();
+
     if (engineConfiguration.isJobExecutorAcquireByPriority()) {
       orderingProperties.add(JOB_PRIORITY_ORDERING_PROPERTY);
     }
@@ -235,6 +240,7 @@ public class JobManager extends AbstractManager {
     params.put("orderingProperties", orderingProperties);
     // don't apply default sorting
     params.put("applyOrdering", !orderingProperties.isEmpty());
+    params.put("applyExclusiveOverProcessHierarchies", engineConfiguration.isJobExecutorAcquireExclusiveOverProcessHierarchies());
 
     return getDbEntityManager().selectList("selectNextJobsToExecute", params, page);
   }

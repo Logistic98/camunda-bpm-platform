@@ -17,9 +17,7 @@
 
 'use strict';
 
-var fs = require('fs');
-
-var template = fs.readFileSync(__dirname + '/groupCreate.html', 'utf8');
+var template = require('./groupCreate.html?raw');
 
 var Controller = [
   '$scope',
@@ -73,12 +71,14 @@ var Controller = [
           });
           $location.path('/groups');
         },
-        function() {
+        function({data: {message}}) {
           Notifications.addError({
             status: $translate.instant('NOTIFICATIONS_STATUS_FAILED'),
             message: $translate.instant('GROUP_CREATE_MESSAGE_ERROR', {
-              group: group.id
-            })
+              group: group.id,
+              message
+            }),
+            exclusive: true
           });
         }
       );
